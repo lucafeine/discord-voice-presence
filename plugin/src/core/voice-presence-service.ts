@@ -29,6 +29,8 @@ export interface VoicePresenceState {
 	status: VoicePresenceStatus;
 	/** Message destine a l'utilisateur, en cas d'erreur. */
 	message: string | null;
+	/** Identifiant Discord de l'utilisateur courant, pour le reconnaitre dans le roster. */
+	selfId: string | null;
 	/** Nom du salon vocal, ou `null` hors vocal. */
 	channel: string | null;
 	/** Nom du serveur, quand il est connu. */
@@ -39,6 +41,7 @@ export interface VoicePresenceState {
 const INITIAL: VoicePresenceState = {
 	status: "connecting",
 	message: null,
+	selfId: null,
 	channel: null,
 	guild: null,
 	participants: []
@@ -68,6 +71,8 @@ export class VoicePresenceService {
 	#ipc: DiscordIpc | null = null;
 	#monitor: VoiceMonitor | null = null;
 	#avatars: AvatarCache | null = null;
+	/** Identifiant de l'utilisateur courant, connu apres la connexion. */
+	#selfId: string | null = null;
 	#starting = false;
 	#stopped = false;
 	#authorizing = false;
@@ -157,6 +162,7 @@ export class VoicePresenceService {
 
 			this.#ipc = ipc;
 			this.#avatars = new AvatarCache(ipc);
+			this.#selfId = ipc.selfUser?.id ?? null;
 
 			const monitor = new VoiceMonitor(ipc);
 			monitor.on("update", (participants, channel) => {
@@ -233,6 +239,7 @@ export class VoicePresenceService {
 			...this.#state,
 			status: "ready",
 			message: null,
+			selfId: this.#selfId,
 			channel: channel?.name ?? null,
 			guild
 		});
@@ -248,6 +255,7 @@ export class VoicePresenceService {
 			...this.#state,
 			status: "ready",
 			message: null,
+			selfId: this.#selfId,
 			channel: channel?.name ?? null,
 			participants
 		});

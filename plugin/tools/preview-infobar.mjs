@@ -45,6 +45,17 @@ const ALERT_FRAME_Y = FRAME_Y;
 const ALERT_AVATAR_X = ALERT_FRAME_X + INSET;
 const ALERT_TEXT_X = ALERT_FRAME_X + CIRCLE + 12;
 
+// Meme geometrie du voile de rappel
+const FLASH_BAR_X = 6;
+const FLASH_BAR_Y = 9;
+const FLASH_BAR_WIDTH = 3;
+const FLASH_BAR_HEIGHT = 32;
+const FLASH_ICON = 18;
+const FLASH_ICON_X = 18;
+const FLASH_ICON_Y = Math.round((HEIGHT - FLASH_ICON) / 2);
+const FLASH_TEXT_X = 44;
+const FLASH_MESSAGE = { mute: "Vous êtes muet", deafen: "Vous êtes en sourdine" };
+
 const read = (name) => fs.readFileSync(path.join(assets, name));
 
 /** Rend un SVG a une taille donnee. */
@@ -150,9 +161,37 @@ async function compose({ count, speaking, badge, alert, flash }) {
 		await composeAlert(layers, alert);
 	}
 
-	// Voile de rappel : dessine par-dessus la rangee, sans la masquer.
+	// Voile de rappel : opaque, il masque la rangee, c'est voulu.
 	if (flash) {
-		layers.push({ input: await toPng(read(`flash-${flash}.svg`), WIDTH, HEIGHT), left: 0, top: 0 });
+		layers.push({
+			input: await toPng(read(`flash-bg-${flash}.svg`), WIDTH, HEIGHT),
+			left: 0,
+			top: 0
+		});
+		layers.push({
+			input: await toPng(read("flash-bar.svg"), FLASH_BAR_WIDTH, FLASH_BAR_HEIGHT),
+			left: FLASH_BAR_X,
+			top: FLASH_BAR_Y
+		});
+		layers.push({
+			input: await toPng(read(`flash-icon-${flash}.svg`), FLASH_ICON, FLASH_ICON),
+			left: FLASH_ICON_X,
+			top: FLASH_ICON_Y
+		});
+		layers.push({
+			input: await sharp(
+				Buffer.from(
+					`<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}">
+             <text x="${FLASH_TEXT_X}" y="${HEIGHT / 2}" font-family="Segoe UI, Arial, sans-serif"
+                   font-size="15" font-weight="600" fill="#FFFFFF" dominant-baseline="central">${FLASH_MESSAGE[flash]}</text>
+           </svg>`
+				)
+			)
+				.png()
+				.toBuffer(),
+			left: 0,
+			top: 0
+		});
 	}
 
 	return sharp({

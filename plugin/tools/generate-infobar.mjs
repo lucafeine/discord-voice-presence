@@ -88,21 +88,41 @@ const ALERT_AVATAR_Y = FRAME_Y + INSET;
 const ALERT_TEXT_X = ALERT_FRAME_X + CIRCLE + 12;
 const ALERT_TEXT_WIDTH = WIDTH - ALERT_TEXT_X - 10;
 
-/** Ordres de superposition de la surcouche, au-dessus de la rangee. */
+/** Ordres de superposition, du fond vers l'avant. */
 const Z = {
 	card: 0,
 	avatar: 1,
 	frame: 2,
 	badge: 3,
+	// Voile de rappel : au-dessus de la rangee, mais SOUS les annonces, pour
+	// qu'une arrivee ou un depart reste lisible si les deux se produisent
+	// ensemble.
+	flashBg: 5,
+	flashBar: 6,
+	flashIcon: 7,
+	flashText: 8,
 	alertBg: 10,
 	alertAccent: 11,
 	alertAvatar: 12,
 	alertFrame: 13,
 	alertText: 14,
-	status: 15,
-	/** Voile de rappel, au-dessus de tout : il teinte la rangee sans la cacher. */
-	flash: 16
+	status: 15
 };
+
+// --- Voile de rappel ---------------------------------------------------------
+
+/** Barre verticale a gauche, pour l'effet encadre. */
+const FLASH_BAR_X = 6;
+const FLASH_BAR_Y = 9;
+const FLASH_BAR_WIDTH = 3;
+const FLASH_BAR_HEIGHT = 32;
+
+const FLASH_ICON = 18;
+const FLASH_ICON_X = 18;
+const FLASH_ICON_Y = Math.round((HEIGHT - FLASH_ICON) / 2);
+
+const FLASH_TEXT_X = 44;
+const FLASH_TEXT_WIDTH = WIDTH - FLASH_TEXT_X - 10;
 
 // --- Assets ------------------------------------------------------------------
 
@@ -212,6 +232,30 @@ function flashSvg(color) {
 }
 
 /**
+ * Pictogramme de coupure, partage par le badge et le voile de rappel.
+ *
+ * Un seul trace pour les deux usages : le badge l'entoure d'un disque colore, le
+ * voile le pose seul, en blanc, a cote du texte.
+ */
+function cutGlyph(kind) {
+	if (kind === "mute") {
+		return `<g stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round">
+           <rect x="9.4" y="4.2" width="5.2" height="9.2" rx="2.6"/>
+           <path d="M6.9 11.2a5.1 5.1 0 0 0 10.2 0"/>
+           <line x1="12" y1="16.4" x2="12" y2="19"/>
+         </g>
+         <line x1="5.6" y1="5.6" x2="18.4" y2="18.4" stroke="#ed4245" stroke-width="4.8" stroke-linecap="round"/>
+         <line x1="5.6" y1="5.6" x2="18.4" y2="18.4" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>`;
+	}
+
+	return `<g stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round">
+           <path d="M5.2 14.2v-2.6a6.8 6.8 0 0 1 13.6 0v2.6"/>
+         </g>
+         <rect x="4" y="12.4" width="3.7" height="6.4" rx="1.7" fill="#fff"/>
+         <rect x="16.3" y="12.4" width="3.7" height="6.4" rx="1.7" fill="#fff"/>`;
+}
+
+/**
  * Badge d'etat.
  *
  * Priorite au casque : sur Discord, se couper le son coupe aussi le micro,
@@ -220,24 +264,33 @@ function flashSvg(color) {
 function badgeSvg(kind) {
 	const fill = kind === "mute" ? "#ed4245" : "#f0b232";
 
-	const glyph =
-		kind === "mute"
-			? `<g stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round">
-           <rect x="9.4" y="4.2" width="5.2" height="9.2" rx="2.6"/>
-           <path d="M6.9 11.2a5.1 5.1 0 0 0 10.2 0"/>
-           <line x1="12" y1="16.4" x2="12" y2="19"/>
-         </g>
-         <line x1="5.6" y1="5.6" x2="18.4" y2="18.4" stroke="${fill}" stroke-width="4.8" stroke-linecap="round"/>
-         <line x1="5.6" y1="5.6" x2="18.4" y2="18.4" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>`
-			: `<g stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round">
-           <path d="M5.2 14.2v-2.6a6.8 6.8 0 0 1 13.6 0v2.6"/>
-         </g>
-         <rect x="4" y="12.4" width="3.7" height="6.4" rx="1.7" fill="#fff"/>
-         <rect x="16.3" y="12.4" width="3.7" height="6.4" rx="1.7" fill="#fff"/>`;
-
 	return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
   <circle cx="12" cy="12" r="11.5" fill="${fill}" stroke="${CARD_COLOR}" stroke-width="1.5"/>
-  ${glyph}
+  ${cutGlyph(kind)}
+</svg>
+`;
+}
+
+/** Fond opaque du voile : il masque la rangee, c'est voulu. */
+function flashBackgroundSvg(color) {
+	return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}">
+  <rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="10" fill="${color}"/>
+</svg>
+`;
+}
+
+/** Barre verticale a gauche, qui donne l'effet encadre. */
+function flashBarSvg() {
+	return `<svg xmlns="http://www.w3.org/2000/svg" width="${FLASH_BAR_WIDTH}" height="${FLASH_BAR_HEIGHT}">
+  <rect x="0" y="0" width="${FLASH_BAR_WIDTH}" height="${FLASH_BAR_HEIGHT}" rx="${FLASH_BAR_WIDTH / 2}" fill="#FFFFFF"/>
+</svg>
+`;
+}
+
+/** Pictogramme du voile : le meme trace que le badge, sans le disque. */
+function flashIconSvg(kind) {
+	return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  ${cutGlyph(kind)}
 </svg>
 `;
 }
@@ -347,15 +400,42 @@ function layout() {
 		zOrder: Z.alertText
 	});
 
-	// Voile de rappel d'une coupure, au-dessus de tout. Allume par intermittence
-	// tant qu'une personne est coupee, sans jamais masquer la rangee.
+	// Voile de rappel d'une coupure : masque la rangee une seconde toutes les
+	// cinq secondes, tant que la coupure dure.
 	items.push({
-		key: "flash",
+		key: "flashBg",
 		type: "pixmap",
 		rect: [0, 0, WIDTH, HEIGHT],
 		value: "",
 		opacity: 0,
-		zOrder: Z.flash
+		zOrder: Z.flashBg
+	});
+	items.push({
+		key: "flashBar",
+		type: "pixmap",
+		rect: [FLASH_BAR_X, FLASH_BAR_Y, FLASH_BAR_WIDTH, FLASH_BAR_HEIGHT],
+		value: "imgs/infobar/flash-bar.svg",
+		opacity: 0,
+		zOrder: Z.flashBar
+	});
+	items.push({
+		key: "flashIcon",
+		type: "pixmap",
+		rect: [FLASH_ICON_X, FLASH_ICON_Y, FLASH_ICON, FLASH_ICON],
+		value: "",
+		opacity: 0,
+		zOrder: Z.flashIcon
+	});
+	items.push({
+		key: "flashText",
+		type: "text",
+		rect: [FLASH_TEXT_X, 12, FLASH_TEXT_WIDTH, 26],
+		value: "",
+		font: { size: 15, weight: 600 },
+		alignment: "left",
+		color: "#FFFFFF",
+		"text-overflow": "ellipsis",
+		zOrder: Z.flashText
 	});
 
 	// Texte centre, au-dessus de la surcouche : il sert aux etats sans avatars
@@ -411,8 +491,10 @@ for (const [kind, color] of Object.entries(ACCENTS)) {
 }
 
 // Voiles de rappel, uniquement pour les coupures.
+fs.writeFileSync(path.join(assetsDir, "flash-bar.svg"), flashBarSvg());
 for (const kind of ["mute", "deafen"]) {
-	fs.writeFileSync(path.join(assetsDir, `flash-${kind}.svg`), flashSvg(ACCENTS[kind]));
+	fs.writeFileSync(path.join(assetsDir, `flash-bg-${kind}.svg`), flashBackgroundSvg(ACCENTS[kind]));
+	fs.writeFileSync(path.join(assetsDir, `flash-icon-${kind}.svg`), flashIconSvg(kind));
 }
 fs.writeFileSync(path.join(assetsDir, "badge-mute.svg"), badgeSvg("mute"));
 fs.writeFileSync(path.join(assetsDir, "badge-deaf.svg"), badgeSvg("deaf"));

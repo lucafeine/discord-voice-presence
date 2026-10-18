@@ -35,14 +35,20 @@ const ALERT_DURATION_MS: Record<VoiceAlert["kind"], number> = {
 };
 
 /**
- * Rappel d'une coupure : un voile de 1 s, toutes les 5 s, tant que ca dure.
+ * Rappel d'une coupure : un voile opaque de 1 s, toutes les 5 s, tant que ca dure.
  *
- * Le voile est semi-transparent et passe au-dessus de la rangee : il rappelle la
- * coupure sans jamais cacher les avatars. Deux mises a jour par cycle, tres loin
- * de la limite de 10 par seconde des guidelines.
+ * Il ne concerne que TON propre etat : masquer la rangee en boucle parce qu'un
+ * autre participant est coupe serait insupportable. Deux mises a jour par cycle,
+ * tres loin de la limite de 10 par seconde des guidelines.
  */
 const FLASH_ON_MS = 1_000;
 const FLASH_CYCLE_MS = 5_000;
+
+/** Message du voile, par type de coupure. */
+const FLASH_MESSAGE: Record<CutKind, string> = {
+	mute: "Vous êtes muet",
+	deafen: "Vous êtes en sourdine"
+};
 
 /** Au-dela, on jette : mieux vaut rater une annonce que rester en retard. */
 const MAX_QUEUE = 4;
@@ -200,20 +206,20 @@ export class VoicePresenceInfobar extends SingletonAction {
 	// --- Voile de rappel des coupures ----------------------------------------
 
 	/**
-	 * Coupure la plus severe du salon, ou `null`.
+	 * Coupure de l'utilisateur courant, ou `null`.
 	 *
 	 * Deduit du roster et non d'un evenement : l'etat est ainsi juste des la
-	 * connexion, meme si quelqu'un etait deja coupe avant.
+	 * connexion, meme si le micro etait deja coupe avant.
 	 */
-	#cutKind(participants: readonly Participant[]): CutKind | null {
-		let muted = false;
+	#cutKind(participants: readonly Participant[], selfId: string | null): CutKind | null {
+		if (selfId === null) return null;
 
-		for (const participant of participants) {
-			if (participant.selfDeaf || participant.serverDeaf) return "deafen";
-			if (participant.selfMute || participant.serverMute || participant.suppressed) muted = true;
-		}
+		const me = participants.find((participant) => participant.id === selfId);
+		if (me === undefined) return null;
 
-		return muted ? "mute" : null;
+		if (me.selfDeaf || me.serverDeaf) return "deafen";
+		if (me.selfMute || me.serverMute || me.suppressed) return "mute";
+		return null;
 	}
 
 	/** Demarre le cycle si besoin. Sans effet s'il tourne deja. */
@@ -332,32 +338,50 @@ export class VoicePresenceInfobar extends SingletonAction {
 		}
 
 		await this.#applyAlert(payload, infobar.id, state, showAvatars);
-		this.#applyFlash(payload, infobar, participants);
+		const flashing = this.#applyFlash(payload, infobar, participants, state.selfId);
+
+		// Le texte centre est au-dessus du voile : on le vide pour qu'il ne
+		// s'affiche pas par-dessus.
+		if (flashing) {
+			payload["status"] = "";
+			payload["detail"] = "";
+		}
 
 		return payload;
 	}
 
-	/** Ajoute le voile de rappel, ou l'eteint et arrete le cycle. */
+	/**
+	 * Ajoute le voile de rappel, ou l'eteint et arrete le cycle.
+	 *
+	 * Renvoie vrai si le voile est actuellement visible.
+	 */
 	#applyFlash(
 		payload: Record<string, ItemState>,
 		infobar: InfobarTarget,
-		participants: readonly Participant[]
-	): void {
-		const kind = this.#cutKind(participants);
+		participants: readonly Participant[],
+		selfId: string | null
+	): boolean {
+		const kind = this.#cutKind(participants, selfId);
 
 		if (kind === null) {
 			this.#stopFlash(infobar.id);
-			payload["flash"] = { value: "", opacity: 0 };
-			return;
+			payload["flashBg"] = { value: "", opacity: 0 };
+			payload["flashBar"] = { value: "", opacity: 0 };
+			payload["flashIcon"] = { value: "", opacity: 0 };
+			payload["flashText"] = "";
+			return false;
 		}
 
 		this.#ensureFlashing(infobar, infobar.id);
 		const visible = this.#flashFor(infobar.id).on;
+		const opacity = visible ? 1 : 0;
 
-		payload["flash"] = {
-			value: `imgs/infobar/flash-${kind}.svg`,
-			opacity: visible ? 1 : 0
-		};
+		payload["flashBg"] = { value: `imgs/infobar/flash-bg-${kind}.svg`, opacity };
+		payload["flashBar"] = { value: "imgs/infobar/flash-bar.svg", opacity };
+		payload["flashIcon"] = { value: `imgs/infobar/flash-icon-${kind}.svg`, opacity };
+		payload["flashText"] = visible ? FLASH_MESSAGE[kind] : "";
+
+		return visible;
 	}
 
 	/** Ajoute la surcouche d'annonce, ou la masque et remet le texte d'etat. */

@@ -301,7 +301,7 @@
 			"zOrder": 14
 		},
 		{
-			"key": "flash",
+			"key": "flashBg",
 			"type": "pixmap",
 			"rect": [
 				0,
@@ -311,7 +311,52 @@
 			],
 			"value": "",
 			"opacity": 0,
-			"zOrder": 16
+			"zOrder": 5
+		},
+		{
+			"key": "flashBar",
+			"type": "pixmap",
+			"rect": [
+				6,
+				9,
+				3,
+				32
+			],
+			"value": "imgs/infobar/flash-bar.svg",
+			"opacity": 0,
+			"zOrder": 6
+		},
+		{
+			"key": "flashIcon",
+			"type": "pixmap",
+			"rect": [
+				18,
+				16,
+				18,
+				18
+			],
+			"value": "",
+			"opacity": 0,
+			"zOrder": 7
+		},
+		{
+			"key": "flashText",
+			"type": "text",
+			"rect": [
+				44,
+				12,
+				178,
+				26
+			],
+			"value": "",
+			"font": {
+				"size": 15,
+				"weight": 600
+			},
+			"alignment": "left",
+			"color": "#FFFFFF",
+			"text-overflow": "ellipsis",
+			"zOrder": 8
 		},
 		{
 			"key": "status",
