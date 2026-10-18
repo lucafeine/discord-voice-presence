@@ -330,10 +330,10 @@
 			"key": "flashIcon",
 			"type": "pixmap",
 			"rect": [
-				18,
-				16,
-				18,
-				18
+				15,
+				12,
+				26,
+				26
 			],
 			"value": "",
 			"opacity": 0,
@@ -343,9 +343,9 @@
 			"key": "flashText",
 			"type": "text",
 			"rect": [
-				44,
+				48,
 				12,
-				178,
+				176,
 				26
 			],
 			"value": "",

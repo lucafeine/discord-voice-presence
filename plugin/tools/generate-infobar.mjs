@@ -117,12 +117,12 @@ const FLASH_BAR_Y = 9;
 const FLASH_BAR_WIDTH = 3;
 const FLASH_BAR_HEIGHT = 32;
 
-const FLASH_ICON = 18;
-const FLASH_ICON_X = 18;
+const FLASH_ICON = 26;
+const FLASH_ICON_X = 15;
 const FLASH_ICON_Y = Math.round((HEIGHT - FLASH_ICON) / 2);
 
-const FLASH_TEXT_X = 44;
-const FLASH_TEXT_WIDTH = WIDTH - FLASH_TEXT_X - 10;
+const FLASH_TEXT_X = 48;
+const FLASH_TEXT_WIDTH = WIDTH - FLASH_TEXT_X - 8;
 
 // --- Assets ------------------------------------------------------------------
 

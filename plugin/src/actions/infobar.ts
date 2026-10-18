@@ -35,14 +35,17 @@ const ALERT_DURATION_MS: Record<VoiceAlert["kind"], number> = {
 };
 
 /**
- * Rappel d'une coupure : un voile opaque de 1 s, toutes les 5 s, tant que ca dure.
+ * Rappel d'une coupure : un voile opaque, tant que ca dure.
  *
  * Il ne concerne que TON propre etat : masquer la rangee en boucle parce qu'un
- * autre participant est coupe serait insupportable. Deux mises a jour par cycle,
- * tres loin de la limite de 10 par seconde des guidelines.
+ * autre participant est coupe serait insupportable.
+ *
+ * Durees choisies pour laisser le temps de lire la phrase entiere : « Vous etes
+ * en sourdine » fait 22 caracteres, une seconde ne suffisait pas. Deux mises a
+ * jour par cycle, tres loin de la limite de 10 par seconde des guidelines.
  */
-const FLASH_ON_MS = 1_000;
-const FLASH_CYCLE_MS = 5_000;
+const FLASH_ON_MS = 2_500;
+const FLASH_CYCLE_MS = 7_500;
 
 /** Message du voile, par type de coupure. */
 const FLASH_MESSAGE: Record<CutKind, string> = {
