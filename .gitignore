@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Secrets — ne jamais committer
+.env
+.env.*
+!.env.example
+
+# Données locales du prototype (tokens OAuth, cache d'avatars)
+.data/
+out/
+
+# Journalisation
+*.log
+npm-debug.log*
+
+# Divers
+.DS_Store
+Thumbs.db
