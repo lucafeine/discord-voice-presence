@@ -1,0 +1,25 @@
+{
+  "name": "discord-voice-presence-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Validation du RPC Discord local (participants + avatars) avant le plugin Stream Deck Neo",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "smoke": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env src/index.ts smoke",
+    "auth": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env src/index.ts auth",
+    "status": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env src/index.ts status",
+    "watch": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env src/index.ts watch",
+    "preview": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env src/index.ts preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
+  }
+}
