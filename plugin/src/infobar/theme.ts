@@ -122,26 +122,42 @@ export const FLASH_ICON_Y = Math.round((HEIGHT - FLASH_ICON) / 2);
 export const FLASH_TEXT_X = 48;
 export const FLASH_TEXT_WIDTH = WIDTH - FLASH_TEXT_X - 8;
 
-/** Ordres de superposition, du fond vers l'avant. */
+/**
+ * Ordres de superposition, du fond vers l'avant.
+ *
+ * Chaque position de la grille occupe sa PROPRE plage d'ordres, et ce n'est pas
+ * un detail : les positions sont espacees d'un demi-emplacement alors que les
+ * cadres font un emplacement plein, donc deux positions voisines se chevauchent
+ * forcement. A ordre egal, un chevauchement fait echouer le rendu du layout
+ * ENTIER : plus rien ne s'affiche.
+ *
+ * Deux positions voisines ne sont jamais visibles en meme temps, puisque les
+ * positions occupees avancent de deux crans. L'ordre de peinture entre elles
+ * n'a donc aucune incidence visuelle.
+ */
 export const Z = {
 	card: 0,
-	avatar: 1,
-	frame: 2,
-	badge: 3,
-	// Voile de rappel : au-dessus de la rangee, mais SOUS les annonces, pour
-	// qu'une arrivee ou un depart reste lisible si les deux se produisent
-	// ensemble.
-	flashBg: 5,
-	flashBar: 6,
-	flashIcon: 7,
-	flashText: 8,
-	alertBg: 10,
-	alertAccent: 11,
-	alertAvatar: 12,
-	alertFrame: 13,
-	alertText: 14,
-	status: 15
+	/** Premiere position de la rangee ; chaque position occupe 3 ordres. */
+	rowBase: 10,
+	rowStep: 3,
+	flashBg: 40,
+	flashBar: 41,
+	flashIcon: 42,
+	flashText: 43,
+	alertBg: 50,
+	alertAccent: 51,
+	alertAvatar: 52,
+	alertFrame: 53,
+	alertText: 54,
+	status: 60
 } as const;
+
+/** Ordre de l'avatar de la position `index`. */
+export const avatarZ = (index: number): number => Z.rowBase + index * Z.rowStep;
+/** Ordre du cadre de la position `index`. */
+export const frameZ = (index: number): number => avatarZ(index) + 1;
+/** Ordre du badge de la position `index`. */
+export const badgeZ = (index: number): number => avatarZ(index) + 2;
 
 // --- Fabrique d'assets -------------------------------------------------------
 

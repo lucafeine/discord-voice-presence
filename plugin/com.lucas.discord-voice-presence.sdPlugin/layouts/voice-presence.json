@@ -26,7 +26,7 @@
 			],
 			"value": "",
 			"opacity": 0,
-			"zOrder": 1
+			"zOrder": 10
 		},
 		{
 			"key": "avatar1",
@@ -39,7 +39,7 @@
 			],
 			"value": "",
 			"opacity": 0,
-			"zOrder": 1
+			"zOrder": 13
 		},
 		{
 			"key": "avatar2",
@@ -52,7 +52,7 @@
 			],
 			"value": "",
 			"opacity": 0,
-			"zOrder": 1
+			"zOrder": 16
 		},
 		{
 			"key": "avatar3",
@@ -65,7 +65,7 @@
 			],
 			"value": "",
 			"opacity": 0,
-			"zOrder": 1
+			"zOrder": 19
 		},
 		{
 			"key": "avatar4",
@@ -78,7 +78,7 @@
 			],
 			"value": "",
 			"opacity": 0,
-			"zOrder": 1
+			"zOrder": 22
 		},
 		{
 			"key": "avatar5",
@@ -91,7 +91,7 @@
 			],
 			"value": "",
 			"opacity": 0,
-			"zOrder": 1
+			"zOrder": 25
 		},
 		{
 			"key": "avatar6",
@@ -104,7 +104,7 @@
 			],
 			"value": "",
 			"opacity": 0,
-			"zOrder": 1
+			"zOrder": 28
 		},
 		{
 			"key": "frame0",
@@ -117,7 +117,7 @@
 			],
 			"value": "imgs/infobar/theme/frame-000000.svg",
 			"opacity": 0,
-			"zOrder": 2
+			"zOrder": 11
 		},
 		{
 			"key": "frame1",
@@ -130,7 +130,7 @@
 			],
 			"value": "imgs/infobar/theme/frame-000000.svg",
 			"opacity": 0,
-			"zOrder": 2
+			"zOrder": 14
 		},
 		{
 			"key": "frame2",
@@ -143,7 +143,7 @@
 			],
 			"value": "imgs/infobar/theme/frame-000000.svg",
 			"opacity": 0,
-			"zOrder": 2
+			"zOrder": 17
 		},
 		{
 			"key": "frame3",
@@ -156,7 +156,7 @@
 			],
 			"value": "imgs/infobar/theme/frame-000000.svg",
 			"opacity": 0,
-			"zOrder": 2
+			"zOrder": 20
 		},
 		{
 			"key": "frame4",
@@ -169,7 +169,7 @@
 			],
 			"value": "imgs/infobar/theme/frame-000000.svg",
 			"opacity": 0,
-			"zOrder": 2
+			"zOrder": 23
 		},
 		{
 			"key": "frame5",
@@ -182,7 +182,7 @@
 			],
 			"value": "imgs/infobar/theme/frame-000000.svg",
 			"opacity": 0,
-			"zOrder": 2
+			"zOrder": 26
 		},
 		{
 			"key": "frame6",
@@ -195,7 +195,7 @@
 			],
 			"value": "imgs/infobar/theme/frame-000000.svg",
 			"opacity": 0,
-			"zOrder": 2
+			"zOrder": 29
 		},
 		{
 			"key": "badge0",
@@ -208,7 +208,7 @@
 			],
 			"value": "",
 			"opacity": 0,
-			"zOrder": 3
+			"zOrder": 12
 		},
 		{
 			"key": "badge1",
@@ -221,7 +221,7 @@
 			],
 			"value": "",
 			"opacity": 0,
-			"zOrder": 3
+			"zOrder": 15
 		},
 		{
 			"key": "badge2",
@@ -234,7 +234,7 @@
 			],
 			"value": "",
 			"opacity": 0,
-			"zOrder": 3
+			"zOrder": 18
 		},
 		{
 			"key": "badge3",
@@ -247,7 +247,7 @@
 			],
 			"value": "",
 			"opacity": 0,
-			"zOrder": 3
+			"zOrder": 21
 		},
 		{
 			"key": "badge4",
@@ -260,7 +260,7 @@
 			],
 			"value": "",
 			"opacity": 0,
-			"zOrder": 3
+			"zOrder": 24
 		},
 		{
 			"key": "badge5",
@@ -273,7 +273,7 @@
 			],
 			"value": "",
 			"opacity": 0,
-			"zOrder": 3
+			"zOrder": 27
 		},
 		{
 			"key": "badge6",
@@ -286,7 +286,7 @@
 			],
 			"value": "",
 			"opacity": 0,
-			"zOrder": 3
+			"zOrder": 30
 		},
 		{
 			"key": "alertBg",
@@ -299,7 +299,7 @@
 			],
 			"value": "imgs/infobar/alert-bg.svg",
 			"opacity": 0,
-			"zOrder": 10
+			"zOrder": 50
 		},
 		{
 			"key": "alertAccent",
@@ -312,7 +312,7 @@
 			],
 			"value": "",
 			"opacity": 0,
-			"zOrder": 11
+			"zOrder": 51
 		},
 		{
 			"key": "alertAvatar",
@@ -325,7 +325,7 @@
 			],
 			"value": "",
 			"opacity": 0,
-			"zOrder": 12
+			"zOrder": 52
 		},
 		{
 			"key": "alertFrame",
@@ -338,7 +338,7 @@
 			],
 			"value": "imgs/infobar/frame-joined.svg",
 			"opacity": 0,
-			"zOrder": 13
+			"zOrder": 53
 		},
 		{
 			"key": "alertTitle",
@@ -357,7 +357,7 @@
 			"alignment": "left",
 			"color": "#FFFFFF",
 			"text-overflow": "ellipsis",
-			"zOrder": 14
+			"zOrder": 54
 		},
 		{
 			"key": "alertDetail",
@@ -376,7 +376,7 @@
 			"alignment": "left",
 			"color": "#FFFFFF",
 			"text-overflow": "ellipsis",
-			"zOrder": 14
+			"zOrder": 54
 		},
 		{
 			"key": "flashBg",
@@ -389,7 +389,7 @@
 			],
 			"value": "",
 			"opacity": 0,
-			"zOrder": 5
+			"zOrder": 40
 		},
 		{
 			"key": "flashBar",
@@ -402,7 +402,7 @@
 			],
 			"value": "imgs/infobar/flash-bar.svg",
 			"opacity": 0,
-			"zOrder": 6
+			"zOrder": 41
 		},
 		{
 			"key": "flashIcon",
@@ -415,7 +415,7 @@
 			],
 			"value": "",
 			"opacity": 0,
-			"zOrder": 7
+			"zOrder": 42
 		},
 		{
 			"key": "flashText",
@@ -434,7 +434,7 @@
 			"alignment": "left",
 			"color": "#FFFFFF",
 			"text-overflow": "ellipsis",
-			"zOrder": 8
+			"zOrder": 43
 		},
 		{
 			"key": "status",
@@ -453,7 +453,7 @@
 			"alignment": "center",
 			"color": "#FFFFFF",
 			"text-overflow": "ellipsis",
-			"zOrder": 15
+			"zOrder": 60
 		},
 		{
 			"key": "detail",
@@ -472,7 +472,7 @@
 			"alignment": "center",
 			"color": "#A8A8A8",
 			"text-overflow": "ellipsis",
-			"zOrder": 15
+			"zOrder": 60
 		}
 	]
 }

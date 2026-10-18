@@ -46,6 +46,9 @@ import {
 	VISIBLE_SLOTS,
 	WIDTH,
 	Z,
+	avatarZ,
+	badgeZ,
+	frameZ,
 	accentSvg,
 	alertBackgroundSvg,
 	avatarX,
@@ -94,7 +97,7 @@ function layout(): object {
 			rect: [avatarX(index), AVATAR_Y, AVATAR, AVATAR],
 			value: "",
 			opacity: 0,
-			zOrder: Z.avatar
+			zOrder: avatarZ(index)
 		});
 	}
 
@@ -105,7 +108,7 @@ function layout(): object {
 			rect: [slotX(index), FRAME_Y, 50, 50],
 			value: theme.frame,
 			opacity: 0,
-			zOrder: Z.frame
+			zOrder: frameZ(index)
 		});
 	}
 
@@ -116,7 +119,7 @@ function layout(): object {
 			rect: [avatarX(index) + AVATAR - BADGE + 1, AVATAR_Y + AVATAR - BADGE + 1, BADGE, BADGE],
 			value: "",
 			opacity: 0,
-			zOrder: Z.badge
+			zOrder: badgeZ(index)
 		});
 	}
 
@@ -293,6 +296,49 @@ for (const stale of [
 
 const output = layout();
 write("layouts/voice-presence.json", `${JSON.stringify(output, null, "\t")}\n`);
+
+/**
+ * Controle de validite du layout.
+ *
+ * Deux regles qu'Elgato ne verifie PAS dans `streamdeck validate`, et dont la
+ * violation ne produit aucun message : le layout est simplement rejete et plus
+ * rien ne s'affiche sur l'Infobar.
+ */
+function assertLayoutIsRenderable(items: readonly LayoutItem[]): void {
+	for (const item of items) {
+		const [x, y, w, h] = item.rect;
+		if (x < 0 || y < 0 || x + w > WIDTH || y + h > HEIGHT) {
+			throw new Error(`${item.key} sort des bornes : ${JSON.stringify(item.rect)}`);
+		}
+	}
+
+	for (let a = 0; a < items.length; a += 1) {
+		for (let b = a + 1; b < items.length; b += 1) {
+			const first = items[a]!;
+			const second = items[b]!;
+			if (first.zOrder !== second.zOrder) continue;
+			if (!overlaps(first.rect, second.rect)) continue;
+
+			throw new Error(
+				`${first.key} et ${second.key} se chevauchent au meme zOrder ${first.zOrder} : ` +
+					"le layout entier ne serait pas rendu."
+			);
+		}
+	}
+}
+
+type LayoutItem = { key: string; rect: [number, number, number, number]; zOrder: number };
+
+function overlaps(
+	first: [number, number, number, number],
+	second: [number, number, number, number]
+): boolean {
+	const [ax, ay, aw, ah] = first;
+	const [bx, by, bw, bh] = second;
+	return ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah;
+}
+
+assertLayoutIsRenderable((output as { items: LayoutItem[] }).items);
 
 const itemCount = (output as { items: unknown[] }).items.length;
 console.log("assets ecrits dans imgs/infobar/");
