@@ -12,7 +12,7 @@
 				232,
 				50
 			],
-			"value": "imgs/infobar/card.svg",
+			"value": "imgs/infobar/theme/card-000000.svg",
 			"zOrder": 0
 		},
 		{
@@ -76,7 +76,7 @@
 				50,
 				50
 			],
-			"value": "imgs/infobar/frame.svg",
+			"value": "imgs/infobar/theme/frame-000000.svg",
 			"opacity": 0,
 			"zOrder": 2
 		},
@@ -89,7 +89,7 @@
 				50,
 				50
 			],
-			"value": "imgs/infobar/frame.svg",
+			"value": "imgs/infobar/theme/frame-000000.svg",
 			"opacity": 0,
 			"zOrder": 2
 		},
@@ -102,7 +102,7 @@
 				50,
 				50
 			],
-			"value": "imgs/infobar/frame.svg",
+			"value": "imgs/infobar/theme/frame-000000.svg",
 			"opacity": 0,
 			"zOrder": 2
 		},
@@ -115,7 +115,7 @@
 				50,
 				50
 			],
-			"value": "imgs/infobar/frame.svg",
+			"value": "imgs/infobar/theme/frame-000000.svg",
 			"opacity": 0,
 			"zOrder": 2
 		},
@@ -219,7 +219,7 @@
 				50,
 				50
 			],
-			"value": "imgs/infobar/frame.svg",
+			"value": "imgs/infobar/frame-joined.svg",
 			"opacity": 0,
 			"zOrder": 13
 		},

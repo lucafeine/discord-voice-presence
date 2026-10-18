@@ -29,6 +29,7 @@
 			"Icon": "imgs/actions/infobar/icon",
 			"Tooltip": "Show the Discord voice channel participants on the Neo Infobar.",
 			"Controllers": ["Neo"],
+			"PropertyInspectorPath": "ui/infobar.html",
 			"States": [
 				{
 					"Image": "imgs/actions/infobar/key",

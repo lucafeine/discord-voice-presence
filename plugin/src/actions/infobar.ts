@@ -1,6 +1,7 @@
 import streamDeck, {
 	action,
 	SingletonAction,
+	type DidReceiveSettingsEvent,
 	type FeedbackPayload,
 	type Pixmap,
 	type WillAppearEvent,
@@ -11,15 +12,25 @@ import {
 	type VoiceAlert,
 	type VoicePresenceState
 } from "../core/voice-presence-service.js";
+import { DEFAULT_BACKGROUND, avatarX, slotX } from "../infobar/theme.js";
+import { ensureTheme, type ThemeFiles } from "../infobar/theme-writer.js";
 import type { Participant } from "../discord/types.js";
 
 const LAYOUT = "layouts/voice-presence.json";
 
-const FRAME = "imgs/infobar/frame.svg";
-const FRAME_SPEAKING = "imgs/infobar/frame-speaking.svg";
 const BADGE_MUTE = "imgs/infobar/badge-mute.svg";
 const BADGE_DEAF = "imgs/infobar/badge-deafen.svg";
 const AVATAR_PLACEHOLDER = "imgs/infobar/avatar-placeholder.svg";
+
+/**
+ * Reglages exposes dans le Property Inspector.
+ *
+ * Sert de documentation : le SDK type les reglages en `JsonObject`, dont la
+ * contrainte d'index rend ce type inutilisable comme parametre de `SingletonAction`.
+ */
+interface Settings {
+	backgroundColor?: string;
+}
 
 /** Nombre d'emplacements definis dans le layout. */
 const SLOTS = 4;
@@ -98,6 +109,9 @@ export class VoicePresenceInfobar extends SingletonAction {
 	private readonly subscriptions = new Map<string, () => void>();
 	private readonly alertSubscriptions = new Map<string, () => void>();
 
+	/** Couleur de fond choisie dans le Property Inspector, par action. */
+	private readonly themes = new Map<string, ThemeFiles>();
+
 	/** Dernier etat envoye par action, pour n'envoyer que ce qui change. */
 	private readonly lastSent = new Map<string, Record<string, ItemState>>();
 
@@ -115,6 +129,7 @@ export class VoicePresenceInfobar extends SingletonAction {
 
 		const infobar: InfobarTarget = ev.action;
 		this.#forget(infobar.id);
+		this.themes.set(infobar.id, ensureTheme(ev.payload.settings.backgroundColor));
 
 		try {
 			// Le layout doit etre (re)defini a chaque apparition : Stream Deck ne
@@ -138,6 +153,23 @@ export class VoicePresenceInfobar extends SingletonAction {
 		);
 	}
 
+	/**
+	 * Couleur modifiee depuis le Property Inspector.
+	 *
+	 * Les composants du PI enregistrent des que la valeur change, donc il n'y a
+	 * pas de bouton d'enregistrement : cet evenement est le seul signal.
+	 */
+	override onDidReceiveSettings(ev: DidReceiveSettingsEvent): void {
+		if (!ev.action.isNeoInfobar()) return;
+
+		const infobar: InfobarTarget = ev.action;
+		this.themes.set(infobar.id, ensureTheme(ev.payload.settings.backgroundColor));
+
+		// Les chemins d'assets changent avec la couleur, donc la comparaison
+		// ci-dessous detecte bien le changement et renvoie la nouvelle carte.
+		void this.#render(infobar);
+	}
+
 	override onWillDisappear(ev: WillDisappearEvent): void {
 		this.#forget(ev.action.id);
 	}
@@ -154,6 +186,7 @@ export class VoicePresenceInfobar extends SingletonAction {
 
 		this.#stopFlash(id);
 		this.flashes.delete(id);
+		this.themes.delete(id);
 
 		this.lastSent.delete(id);
 		this.lastState.delete(id);
@@ -306,12 +339,16 @@ export class VoicePresenceInfobar extends SingletonAction {
 		state: VoicePresenceState
 	): Promise<Record<string, ItemState>> {
 		const payload: Record<string, ItemState> = {};
+		const theme = this.themes.get(infobar.id) ?? ensureTheme(DEFAULT_BACKGROUND);
+
+		// La carte porte la couleur choisie dans le Property Inspector.
+		payload["card"] = { value: theme.card, opacity: 1 };
 
 		// Tous les emplacements sont toujours decrits : sinon un avatar reste
 		// affiche apres le depart de la personne.
 		for (let slot = 0; slot < SLOTS; slot += 1) {
 			payload[`avatar${slot}`] = { value: "", opacity: 0 };
-			payload[`frame${slot}`] = { value: FRAME, opacity: 0 };
+			payload[`frame${slot}`] = { value: theme.frame, opacity: 0 };
 			payload[`badge${slot}`] = { value: "", opacity: 0 };
 		}
 
@@ -330,7 +367,7 @@ export class VoicePresenceInfobar extends SingletonAction {
 					avatars === null ? null : await avatars.get(participant.id, participant.avatarHash);
 				payload[`avatar${slot}`] = { value: dataUrl ?? AVATAR_PLACEHOLDER, opacity: 1 };
 				payload[`frame${slot}`] = {
-					value: participant.speaking ? FRAME_SPEAKING : FRAME,
+					value: participant.speaking ? theme.frameSpeaking : theme.frame,
 					opacity: 1
 				};
 
@@ -340,7 +377,7 @@ export class VoicePresenceInfobar extends SingletonAction {
 			}
 		}
 
-		await this.#applyAlert(payload, infobar.id, state, showAvatars);
+		await this.#applyAlert(payload, infobar.id, state, showAvatars, theme);
 		const flashing = this.#applyFlash(payload, infobar, participants, state.selfId);
 
 		// Le texte centre est au-dessus du voile : on le vide pour qu'il ne
@@ -392,7 +429,8 @@ export class VoicePresenceInfobar extends SingletonAction {
 		payload: Record<string, ItemState>,
 		id: string,
 		state: VoicePresenceState,
-		showAvatars: boolean
+		showAvatars: boolean,
+		theme: ThemeFiles
 	): Promise<void> {
 		const alert = this.alerts.get(id)?.current ?? null;
 
@@ -400,7 +438,7 @@ export class VoicePresenceInfobar extends SingletonAction {
 			payload["alertBg"] = { value: "", opacity: 0 };
 			payload["alertAccent"] = { value: "", opacity: 0 };
 			payload["alertAvatar"] = { value: "", opacity: 0 };
-			payload["alertFrame"] = { value: FRAME, opacity: 0 };
+			payload["alertFrame"] = { value: theme.frame, opacity: 0 };
 			payload["alertTitle"] = "";
 			payload["alertDetail"] = "";
 
@@ -421,7 +459,7 @@ export class VoicePresenceInfobar extends SingletonAction {
 		if (alert.kind === "channel") {
 			// Pas d'avatar : le texte centre suffit, et evite un trou a gauche.
 			payload["alertAvatar"] = { value: "", opacity: 0 };
-			payload["alertFrame"] = { value: FRAME, opacity: 0 };
+			payload["alertFrame"] = { value: theme.frame, opacity: 0 };
 			payload["alertTitle"] = "";
 			payload["alertDetail"] = "";
 			payload["status"] = alert.channel;

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="fr">
+	<head>
+		<meta charset="utf-8" />
+		<title>Voice Presence</title>
+		<script src="sdpi-components.js"></script>
+		<style>
+			.note {
+				font-size: 11px;
+				line-height: 1.5;
+				color: #969696;
+			}
+
+			.note strong {
+				color: #d8d8d8;
+			}
+		</style>
+	</head>
+
+	<body>
+		<!--
+			L'enregistrement est automatique : `setting` persiste la valeur des
+			qu'elle change, sans bouton d'enregistrement. C'est ce qu'attendent les
+			guidelines du Marketplace.
+		-->
+		<sdpi-item label="Couleur de fond">
+			<sdpi-color setting="backgroundColor" default="#000000"></sdpi-color>
+		</sdpi-item>
+
+		<sdpi-item label="Aide">
+			<div class="note">
+				<strong>Premier lancement</strong><br />
+				Place l'action « Connect to Discord » sur une touche et appuie dessus :
+				Discord demandera l'autorisation une seule fois.<br /><br />
+				Le plugin affiche les avatars des personnes presentes dans ton salon
+				vocal. Il complete le plugin Discord officiel, qui garde ses boutons.
+			</div>
+		</sdpi-item>
+	</body>
+</html>
