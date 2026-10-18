@@ -334,9 +334,10 @@ async function commandWatch(): Promise<void> {
     );
   });
 
-  monitor.on("update", (participants) => {
+  monitor.on("update", (participants, channel) => {
+    const where = channel === null ? "hors vocal" : channel.name;
     process.stderr.write(
-      `\n${participants.length} participant(s) : ` +
+      `\n${participants.length} participant(s) [${where}] : ` +
         `${participants.map((p) => `${p.name}${p.speaking ? "*" : ""}`).join(", ")}\n`,
     );
   });

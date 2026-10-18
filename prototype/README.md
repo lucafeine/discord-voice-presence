@@ -72,6 +72,23 @@ laquelle le plugin Discord officiel d'Elgato embarque un secret.
 | `npm run status` | Salon vocal courant et ses participants | oui |
 | `npm run watch` | Suivi temps réel des arrivées, départs et prises de parole | oui |
 | `npm run preview` | Planche de rendu de l'Infobar (232 × 50) | non en `--fake` |
+| `npm test` | Tests de `VoiceMonitor`, sans Discord ni réseau | non |
+
+### Règles de comportement du suivi
+
+Ces règles viennent d'observations réelles et sont verrouillées par `npm test` :
+
+| Situation | Annonce |
+| --- | --- |
+| Quelqu'un rejoint le salon où tu es | ✅ popup « a rejoint » |
+| Quelqu'un quitte le salon où tu es | ✅ popup « a quitté » |
+| **Tu** changes de salon | ❌ aucune — Discord envoie des `VOICE_STATE_DELETE` pour l'ancien salon, ce ne sont pas des départs |
+| **Tu** quittes le vocal | ❌ aucune — l'écran passe à « Pas en vocal », ce qui est plus juste qu'un popup |
+| Quelqu'un parle / se tait | ✅ surlignage, mis à jour en direct |
+
+La fenêtre de transition dure 1,5 s après un changement de salon. Conséquence
+assumée : un départ survenant dans cet intervalle très court n'est pas annoncé,
+même si l'affichage final reste correct.
 
 ### Options de `preview`
 
@@ -101,6 +118,10 @@ réellement).
 | `GET_GUILDS`, `GET_VOICE_SETTINGS` sans autorisation | refusés (`4006`) |
 | PKCE | impossible : exige une redirection, que le flux RPC interdit |
 | `redirect_uri` | doit être **enregistré** mais **jamais envoyé** |
+| `VOICE_STATE_CREATE` / `DELETE` | reçus en direct, arrivées et départs correctement identifiés |
+| `SPEAKING_START` / `STOP` | reçus en direct, malgré une documentation qui les annonce fragiles |
+| `VOICE_CHANNEL_SELECT` | reçu à chaque changement de salon, avec re-souscription |
+| Changement de salon | l'ancien salon émet des `DELETE` : faux départs si on ne les filtre pas |
 
 D'où la conclusion structurante : **les avatars sont accessibles sans rien,
 mais la liste des participants exige une autorisation unique** (scope `rpc`).
@@ -116,6 +137,7 @@ src/
   avatars.ts   récupération et cache disque des avatars
   render.ts    composition de l'image 232 × 50 de l'Infobar
   fake.ts      données et avatars synthétiques
+  voice.test.ts tests de VoiceMonitor, avec un RPC simulé
   index.ts     ligne de commande
   types.ts     types du RPC Discord
   log.ts       journalisation

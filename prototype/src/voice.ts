@@ -35,6 +35,15 @@ const SPEAKING_EVENTS = ["SPEAKING_START", "SPEAKING_STOP"] as const;
 
 const VOICE_CHANNEL_SELECT = "VOICE_CHANNEL_SELECT";
 
+/**
+ * Duree pendant laquelle on ignore les departs apres un changement de salon.
+ *
+ * Discord envoie un `VOICE_STATE_DELETE` pour l'ancien salon quand on en change.
+ * Sans cette fenetre, chaque changement de salon ferait apparaitre un faux
+ * popup "a quitte" pour des personnes qui n'ont pas bouge.
+ */
+const CHANNEL_TRANSITION_GRACE_MS = 1_500;
+
 // --- Helpers sur les objets Discord ------------------------------------------
 
 /**
@@ -119,6 +128,8 @@ export class VoiceMonitor extends EventEmitter<VoiceMonitorEvents> {
   #participants = new Map<Snowflake, Participant>();
   #subscribedChannelId: Snowflake | null = null;
   #listening = false;
+  #transitioning = false;
+  #transitionTimer: NodeJS.Timeout | null = null;
 
   constructor(ipc: DiscordIpc) {
     super();
@@ -169,19 +180,33 @@ export class VoiceMonitor extends EventEmitter<VoiceMonitorEvents> {
   async #applyChannel(channel: RpcChannel | null): Promise<void> {
     const nextId = channel?.id ?? null;
     const previousId = this.#subscribedChannelId;
+    const changed = nextId !== previousId;
 
-    if (nextId !== previousId) {
+    if (changed) {
+      // Une transition n'a de sens que si l'on quitte un salon auquel on etait
+      // abonne : c'est la seule situation ou Discord envoie des DELETE pour
+      // l'ancien salon.
+      if (previousId !== null) this.#beginTransition();
       if (previousId !== null) await this.#unsubscribe(previousId);
-      this.#subscribedChannelId = nextId;
-      if (nextId !== null) await this.#subscribe(nextId);
-      this.#channel = channel;
-      this.emit("channel", channel);
-    } else {
-      this.#channel = channel;
     }
 
+    // On publie le nouvel etat AVANT de souscrire : pendant l'attente de la
+    // souscription, les messages entrants sont traites et publieraient sinon un
+    // roster encore vide, faisant clignoter l'affichage sur "Pas en vocal".
+    this.#channel = channel;
+    this.#subscribedChannelId = nextId;
+    this.#rebuildParticipants(channel);
+
+    if (changed) this.emit("channel", channel);
+    this.emit("update", this.participants, channel);
+
+    if (changed && nextId !== null) await this.#subscribe(nextId);
+  }
+
+  /** Reconstruit le roster depuis la reponse de Discord. */
+  #rebuildParticipants(channel: RpcChannel | null): void {
     // On conserve l'etat "en train de parler" : il est porte par des evenements
-    // separees de la liste des participants.
+    // distincts de la liste des participants.
     const speakingIds = new Set(
       [...this.#participants.values()].filter((p) => p.speaking).map((p) => p.id),
     );
@@ -192,8 +217,39 @@ export class VoiceMonitor extends EventEmitter<VoiceMonitorEvents> {
         toParticipant(voiceState, speakingIds.has(voiceState.user.id)),
       ]),
     );
+  }
 
-    this.emit("update", this.participants, channel);
+  /**
+   * Marque le debut d'un changement de salon.
+   *
+   * Les `VOICE_STATE_DELETE` recus pendant cette fenetre concernent l'ancien
+   * salon : ce ne sont pas des departs, on les ignore.
+   */
+  #beginTransition(): void {
+    this.#transitioning = true;
+    if (this.#transitionTimer !== null) clearTimeout(this.#transitionTimer);
+
+    this.#transitionTimer = setTimeout(() => {
+      this.#transitioning = false;
+      this.#transitionTimer = null;
+      void this.#settle();
+    }, CHANNEL_TRANSITION_GRACE_MS);
+    this.#transitionTimer.unref();
+  }
+
+  /**
+   * Re-requete l'etat courant, une fois la transition passee.
+   *
+   * Le roster est publie depuis un instantane pris AVANT la souscription aux
+   * evenements : un membre arrivant dans cet intervalle serait manque. Cette
+   * re-requete unique referme la fenetre.
+   */
+  async #settle(): Promise<void> {
+    try {
+      await this.refresh();
+    } catch (error) {
+      log.warn(`Rafraichissement apres changement de salon impossible : ${(error as Error).message}`);
+    }
   }
 
   async #subscribe(channelId: Snowflake): Promise<void> {
@@ -263,6 +319,12 @@ export class VoiceMonitor extends EventEmitter<VoiceMonitorEvents> {
       case "VOICE_STATE_DELETE": {
         const voiceState = extractVoiceState(message.data);
         if (voiceState === null) return;
+
+        // Pendant un changement de salon, les DELETE concernent l'ancien salon et
+        // le roster va etre reconstruit juste apres : les traiter viderait
+        // l'affichage un instant avant qu'il ne se remplisse a nouveau.
+        if (this.#transitioning) return;
+
         const participant = this.#participants.get(voiceState.user.id) ?? toParticipant(voiceState);
         this.#participants.delete(participant.id);
         this.emit("left", participant);
@@ -294,6 +356,13 @@ export class VoiceMonitor extends EventEmitter<VoiceMonitorEvents> {
 
       case VOICE_CHANNEL_SELECT: {
         const selection = message.data as VoiceChannelSelectEvent | undefined;
+
+        // Marque la transition des la reception de l'evenement, avant meme
+        // d'interroger Discord : les DELETE de l'ancien salon peuvent arriver
+        // pendant la requete. Un premier salon (aucun precedent) n'est pas une
+        // transition : il n'y a pas d'ancien salon dont les gens partiraient.
+        if (this.#subscribedChannelId !== null) this.#beginTransition();
+
         log.info(
           selection?.channel_id === null || selection?.channel_id === undefined
             ? "Tu as quitte le vocal."

@@ -13,6 +13,7 @@
     "status": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env src/index.ts status",
     "watch": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env src/index.ts watch",
     "preview": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env src/index.ts preview",
+    "test": "node --disable-warning=ExperimentalWarning --test src/voice.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
