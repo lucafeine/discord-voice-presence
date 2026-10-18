@@ -24,7 +24,8 @@ const OP_PONG = 4;
 
 const PIPE_COUNT = 10;
 const DEFAULT_TIMEOUT_MS = 15_000;
-const PIPE_PROBE_TIMEOUT_MS = 500;
+const PIPE_CONNECT_TIMEOUT_MS = 2_000;
+const HANDSHAKE_TIMEOUT_MS = 10_000;
 
 // --- Types -------------------------------------------------------------------
 
@@ -97,40 +98,41 @@ function pipeCandidates(): string[] {
 }
 
 /**
- * Teste si un pipe accepte une connexion.
+ * Tente une connexion et resout avec le socket ouvert.
  *
- * Les pipes inexistants echouent immediatement (ENOENT) sans jamais atteindre
- * Discord : ils ne consomment donc pas le quota de connexions du client.
+ * On connecte directement plutot que de sonder puis reconnecter : le RPC
+ * Discord limite a 2 connexions par minute, donc chaque connexion doit servir.
+ * Un pipe inexistant echoue immediatement (ENOENT) sans jamais atteindre
+ * Discord, et ne consomme donc pas ce quota.
  */
-function probePipe(pipePath: string): Promise<boolean> {
-  return new Promise((resolve) => {
+function tryConnect(pipePath: string, timeoutMs: number): Promise<net.Socket> {
+  return new Promise((resolve, reject) => {
     const socket = net.connect({ path: pipePath });
     let settled = false;
 
-    const finish = (ok: boolean): void => {
+    const finish = (error?: Error): void => {
       if (settled) return;
       settled = true;
+      clearTimeout(timer);
       socket.removeAllListeners();
-      socket.destroy();
-      resolve(ok);
+
+      if (error === undefined) {
+        resolve(socket);
+      } else {
+        socket.destroy();
+        reject(error);
+      }
     };
 
-    socket.once("connect", () => finish(true));
-    socket.once("error", () => finish(false));
-    const timer = setTimeout(() => finish(false), PIPE_PROBE_TIMEOUT_MS);
+    const timer = setTimeout(
+      () => finish(new Error(`Delai de connexion depasse (${timeoutMs} ms)`)),
+      timeoutMs,
+    );
     timer.unref();
-  });
-}
 
-/** Trouve le premier pipe Discord disponible. */
-export async function findDiscordPipe(): Promise<string> {
-  const candidates = pipeCandidates();
-  for (const candidate of candidates) {
-    if (await probePipe(candidate)) return candidate;
-  }
-  throw new Error(
-    "Aucun pipe Discord trouve (discord-ipc-0 a -9). Verifie que le client Discord est lance et connecte.",
-  );
+    socket.once("connect", () => finish());
+    socket.once("error", (error: Error) => finish(error));
+  });
 }
 
 // --- Client ------------------------------------------------------------------
@@ -188,38 +190,65 @@ export class DiscordIpc extends EventEmitter<DiscordIpcEvents> {
     return this.#socket !== null && !this.#socket.destroyed;
   }
 
-  /** Ouvre le socket, envoie le handshake et attend l'evenement READY. */
+  /**
+   * Ouvre le premier pipe joignable, envoie le handshake et attend READY.
+   *
+   * Une seule connexion est ouverte au total, pour menager le quota du RPC.
+   */
   async connect(): Promise<void> {
-    const pipePath = await findDiscordPipe();
-    this.#pipePath = pipePath;
-    log.info(`pipe Discord : ${pipePath}`);
+    const socket = await this.#openFirstPipe();
+    log.info(`pipe Discord : ${this.#pipePath}`);
 
-    const socket = net.connect({ path: pipePath });
     this.#socket = socket;
     this.#buffer = Buffer.alloc(0);
     this.#closing = false;
 
     await new Promise<void>((resolve, reject) => {
-      const onError = (error: Error): void => {
-        socket.destroy();
-        reject(new Error(`Connexion au pipe Discord impossible : ${error.message}`));
-      };
-      socket.once("error", onError);
+      const timer = setTimeout(() => {
+        this.#readySettle = null;
+        reject(new Error(`Pas de reponse READY apres ${HANDSHAKE_TIMEOUT_MS} ms.`));
+      }, HANDSHAKE_TIMEOUT_MS);
+      timer.unref();
 
-      socket.once("connect", () => {
-        socket.off("error", onError);
-        socket.on("error", (error) => this.emit("error", error));
-        socket.on("close", () => this.#handleClose("socket ferme"));
-        socket.on("data", (chunk: Buffer) => this.#onData(chunk));
+      socket.on("error", (error) => this.emit("error", error));
+      socket.on("close", () => this.#handleClose("socket ferme"));
+      socket.on("data", (chunk: Buffer) => this.#onData(chunk));
 
-        this.#ready = new Promise<void>((readyResolve, readyReject) => {
-          this.#readySettle = { resolve: readyResolve, reject: readyReject };
-        });
-
-        this.#writeFrame(OP_HANDSHAKE, { v: 1, client_id: this.#clientId });
-        this.#ready.then(resolve, reject);
+      this.#ready = new Promise<void>((readyResolve, readyReject) => {
+        this.#readySettle = {
+          resolve: () => {
+            clearTimeout(timer);
+            readyResolve();
+          },
+          reject: (error) => {
+            clearTimeout(timer);
+            readyReject(error);
+          },
+        };
       });
+
+      this.#writeFrame(OP_HANDSHAKE, { v: 1, client_id: this.#clientId });
+      this.#ready.then(resolve, reject);
     });
+  }
+
+  async #openFirstPipe(): Promise<net.Socket> {
+    const candidates = pipeCandidates();
+
+    for (const candidate of candidates) {
+      try {
+        const socket = await tryConnect(candidate, PIPE_CONNECT_TIMEOUT_MS);
+        this.#pipePath = candidate;
+        return socket;
+      } catch {
+        // Pipe absent : on passe au suivant.
+      }
+    }
+
+    throw new Error(
+      "Aucun pipe Discord joignable (discord-ipc-0 a -9). " +
+        "Verifie que le client Discord est lance et connecte a un compte.",
+    );
   }
 
   /**
