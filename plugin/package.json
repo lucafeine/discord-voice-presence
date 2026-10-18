@@ -6,7 +6,9 @@
 	"type": "module",
 	"scripts": {
 		"build": "rollup -c",
+		"assets": "node tools/generate-infobar.mjs",
 		"icons": "node tools/generate-icons.mjs",
+		"preview": "node tools/preview-infobar.mjs",
 		"watch": "rollup -c -w --watch.onEnd=\"streamdeck restart com.lucas.discord-voice-presence\"",
 		"validate": "streamdeck validate com.lucas.discord-voice-presence.sdPlugin",
 		"link": "streamdeck link com.lucas.discord-voice-presence.sdPlugin",

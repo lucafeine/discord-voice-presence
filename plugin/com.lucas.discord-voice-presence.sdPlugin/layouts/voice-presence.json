@@ -4,9 +4,221 @@
 	"controller": "Neo",
 	"items": [
 		{
-			"key": "title",
+			"key": "card",
+			"type": "pixmap",
+			"rect": [
+				0,
+				0,
+				232,
+				50
+			],
+			"value": "imgs/infobar/card.svg",
+			"zOrder": 0
+		},
+		{
+			"key": "avatar0",
+			"type": "pixmap",
+			"rect": [
+				11,
+				8,
+				34,
+				34
+			],
+			"value": "",
+			"opacity": 0,
+			"zOrder": 1
+		},
+		{
+			"key": "avatar1",
+			"type": "pixmap",
+			"rect": [
+				55,
+				8,
+				34,
+				34
+			],
+			"value": "",
+			"opacity": 0,
+			"zOrder": 1
+		},
+		{
+			"key": "avatar2",
+			"type": "pixmap",
+			"rect": [
+				99,
+				8,
+				34,
+				34
+			],
+			"value": "",
+			"opacity": 0,
+			"zOrder": 1
+		},
+		{
+			"key": "avatar3",
+			"type": "pixmap",
+			"rect": [
+				143,
+				8,
+				34,
+				34
+			],
+			"value": "",
+			"opacity": 0,
+			"zOrder": 1
+		},
+		{
+			"key": "avatar4",
+			"type": "pixmap",
+			"rect": [
+				187,
+				8,
+				34,
+				34
+			],
+			"value": "",
+			"opacity": 0,
+			"zOrder": 1
+		},
+		{
+			"key": "frame0",
+			"type": "pixmap",
+			"rect": [
+				8,
+				5,
+				40,
+				40
+			],
+			"value": "imgs/infobar/frame.svg",
+			"opacity": 0,
+			"zOrder": 2
+		},
+		{
+			"key": "frame1",
+			"type": "pixmap",
+			"rect": [
+				52,
+				5,
+				40,
+				40
+			],
+			"value": "imgs/infobar/frame.svg",
+			"opacity": 0,
+			"zOrder": 2
+		},
+		{
+			"key": "frame2",
+			"type": "pixmap",
+			"rect": [
+				96,
+				5,
+				40,
+				40
+			],
+			"value": "imgs/infobar/frame.svg",
+			"opacity": 0,
+			"zOrder": 2
+		},
+		{
+			"key": "frame3",
+			"type": "pixmap",
+			"rect": [
+				140,
+				5,
+				40,
+				40
+			],
+			"value": "imgs/infobar/frame.svg",
+			"opacity": 0,
+			"zOrder": 2
+		},
+		{
+			"key": "frame4",
+			"type": "pixmap",
+			"rect": [
+				184,
+				5,
+				40,
+				40
+			],
+			"value": "imgs/infobar/frame.svg",
+			"opacity": 0,
+			"zOrder": 2
+		},
+		{
+			"key": "badge0",
+			"type": "pixmap",
+			"rect": [
+				31,
+				28,
+				15,
+				15
+			],
+			"value": "",
+			"opacity": 0,
+			"zOrder": 3
+		},
+		{
+			"key": "badge1",
+			"type": "pixmap",
+			"rect": [
+				75,
+				28,
+				15,
+				15
+			],
+			"value": "",
+			"opacity": 0,
+			"zOrder": 3
+		},
+		{
+			"key": "badge2",
+			"type": "pixmap",
+			"rect": [
+				119,
+				28,
+				15,
+				15
+			],
+			"value": "",
+			"opacity": 0,
+			"zOrder": 3
+		},
+		{
+			"key": "badge3",
+			"type": "pixmap",
+			"rect": [
+				163,
+				28,
+				15,
+				15
+			],
+			"value": "",
+			"opacity": 0,
+			"zOrder": 3
+		},
+		{
+			"key": "badge4",
+			"type": "pixmap",
+			"rect": [
+				207,
+				28,
+				15,
+				15
+			],
+			"value": "",
+			"opacity": 0,
+			"zOrder": 3
+		},
+		{
+			"key": "status",
 			"type": "text",
-			"rect": [6, 3, 220, 22],
+			"rect": [
+				6,
+				3,
+				220,
+				22
+			],
 			"value": "",
 			"font": {
 				"size": 17,
@@ -14,12 +226,18 @@
 			},
 			"alignment": "center",
 			"color": "#FFFFFF",
-			"text-overflow": "ellipsis"
+			"text-overflow": "ellipsis",
+			"zOrder": 4
 		},
 		{
 			"key": "detail",
 			"type": "text",
-			"rect": [6, 26, 220, 19],
+			"rect": [
+				6,
+				26,
+				220,
+				19
+			],
 			"value": "",
 			"font": {
 				"size": 12,
@@ -27,7 +245,8 @@
 			},
 			"alignment": "center",
 			"color": "#A8A8A8",
-			"text-overflow": "ellipsis"
+			"text-overflow": "ellipsis",
+			"zOrder": 4
 		}
 	]
 }
