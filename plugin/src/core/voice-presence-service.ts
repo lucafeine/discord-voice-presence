@@ -11,6 +11,7 @@
  */
 
 import { ensureAuthenticated } from "../discord/auth.js";
+import type { TokenStore } from "../discord/auth.js";
 import { AvatarCache } from "../discord/avatars.js";
 import { DISCORD_CLIENT_ID, DISCORD_SCOPES } from "../discord/constants.js";
 import { DiscordIpc } from "../discord/ipc.js";
@@ -48,11 +49,14 @@ type Listener = (state: VoicePresenceState) => void;
 export class VoicePresenceService {
 	#state: VoicePresenceState = INITIAL;
 	readonly #listeners = new Set<Listener>();
+	readonly #store: TokenStore = new GlobalSettingsTokenStore();
+
 	#ipc: DiscordIpc | null = null;
 	#monitor: VoiceMonitor | null = null;
 	#avatars: AvatarCache | null = null;
 	#starting = false;
 	#stopped = false;
+	#authorizing = false;
 	#retryTimer: NodeJS.Timeout | null = null;
 
 	/** Cache d'avatars, disponible une fois la connexion etablie. */
@@ -81,6 +85,32 @@ export class VoicePresenceService {
 		};
 	}
 
+	/**
+	 * Force une nouvelle autorisation.
+	 *
+	 * Le jeton enregistre est efface, puis le consentement est redemande : c'est
+	 * la seule facon de rouvrir la fenetre d'autorisation de Discord, qui n'est
+	 * proposee qu'une fois par autorisation accordee.
+	 */
+	async reauthorize(): Promise<void> {
+		if (this.#authorizing) {
+			log.warn("Une autorisation est deja en cours.");
+			return;
+		}
+
+		this.#authorizing = true;
+		log.info("Nouvelle autorisation demandee.");
+		this.#teardown();
+
+		try {
+			await this.#store.clear();
+			this.#publish({ ...INITIAL, status: "connecting" });
+			await this.#start();
+		} finally {
+			this.#authorizing = false;
+		}
+	}
+
 	// --- Cycle de vie --------------------------------------------------------
 
 	async #start(): Promise<void> {
@@ -93,7 +123,7 @@ export class VoicePresenceService {
 			const ipc = new DiscordIpc({ clientId: DISCORD_CLIENT_ID });
 			await ipc.connect();
 
-			await ensureAuthenticated(ipc, new GlobalSettingsTokenStore(), {
+			await ensureAuthenticated(ipc, this.#store, {
 				clientId: DISCORD_CLIENT_ID,
 				scopes: DISCORD_SCOPES
 			});
@@ -108,7 +138,7 @@ export class VoicePresenceService {
 
 			const monitor = new VoiceMonitor(ipc);
 			monitor.on("update", (participants, channel) => {
-				void this.#onRoster(participants, channel);
+				this.#onRoster(participants, channel);
 			});
 			monitor.on("channel", (channel) => {
 				void this.#onChannel(channel);
@@ -133,9 +163,8 @@ export class VoicePresenceService {
 		}
 	}
 
-	#stop(): void {
-		this.#stopped = true;
-
+	/** Ferme la connexion sans arreter le service (une reconnexion peut suivre). */
+	#teardown(): void {
 		if (this.#retryTimer !== null) {
 			clearTimeout(this.#retryTimer);
 			this.#retryTimer = null;
@@ -145,6 +174,11 @@ export class VoicePresenceService {
 		this.#ipc = null;
 		this.#monitor = null;
 		this.#avatars = null;
+	}
+
+	#stop(): void {
+		this.#stopped = true;
+		this.#teardown();
 		this.#state = INITIAL;
 	}
 
@@ -153,6 +187,7 @@ export class VoicePresenceService {
 
 		this.#ipc = null;
 		this.#monitor = null;
+		this.#avatars = null;
 
 		this.#retryTimer = setTimeout(() => {
 			this.#retryTimer = null;
@@ -164,7 +199,8 @@ export class VoicePresenceService {
 	// --- Etat ----------------------------------------------------------------
 
 	async #onChannel(channel: RpcChannel | null): Promise<void> {
-		const guild = await (this.#monitor?.guildName(channel) ?? Promise.resolve(null));
+		const guild = this.#monitor === null ? null : await this.#monitor.guildName(channel);
+
 		this.#publish({
 			...this.#state,
 			status: "ready",
@@ -174,7 +210,7 @@ export class VoicePresenceService {
 		});
 	}
 
-	async #onRoster(participants: Participant[], channel: RpcChannel | null): Promise<void> {
+	#onRoster(participants: Participant[], channel: RpcChannel | null): void {
 		this.#publish({
 			...this.#state,
 			status: "ready",

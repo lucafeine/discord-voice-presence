@@ -36,6 +36,21 @@
 				}
 			],
 			"UserTitleEnabled": false
+		},
+		{
+			"Name": "Connect to Discord",
+			"UUID": "com.lucas.discord-voice-presence.connect",
+			"Icon": "imgs/actions/connect/icon",
+			"Tooltip": "Force a new Discord authorization: opens the consent window again.",
+			"Controllers": ["Keypad"],
+			"States": [
+				{
+					"Image": "imgs/actions/connect/key",
+					"Name": "Connect"
+				}
+			],
+			"SupportedInMultiActions": true,
+			"UserTitleEnabled": false
 		}
 	]
 }

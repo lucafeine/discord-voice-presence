@@ -48,4 +48,10 @@ export class GlobalSettingsTokenStore implements TokenStore {
 			[TOKENS_KEY]: JSON.stringify(tokens)
 		});
 	}
+
+	async clear(): Promise<void> {
+		const settings = await streamDeck.settings.getGlobalSettings<GlobalSettings>();
+		const { [TOKENS_KEY]: _removed, ...rest } = settings;
+		await streamDeck.settings.setGlobalSettings(rest);
+	}
 }

@@ -83,6 +83,8 @@ export interface AuthOptions {
 export interface TokenStore {
   load(): Promise<TokenSet | null>;
   save(tokens: TokenSet): Promise<void>;
+  /** Efface l'autorisation enregistree, pour en reclamer une nouvelle. */
+  clear(): Promise<void>;
 }
 
 // --- PKCE --------------------------------------------------------------------

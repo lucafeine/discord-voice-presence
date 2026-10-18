@@ -1,9 +1,11 @@
 import streamDeck from "@elgato/streamdeck";
+import { ConnectAction } from "./actions/connect.js";
 import { VoicePresenceInfobar } from "./actions/infobar.js";
 
 streamDeck.logger.setLevel("info");
 
 streamDeck.actions.registerAction(new VoicePresenceInfobar());
+streamDeck.actions.registerAction(new ConnectAction());
 
 // La connexion au RPC Discord est ouverte a la premiere action placee et fermee
 // quand plus aucune ne l'est : il n'y a donc rien a couper explicitement ici.
