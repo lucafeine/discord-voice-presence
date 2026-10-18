@@ -4,16 +4,29 @@
 	"controller": "Neo",
 	"items": [
 		{
-			"key": "status",
+			"key": "title",
 			"type": "text",
-			"rect": [8, 4, 216, 42],
+			"rect": [6, 3, 220, 22],
 			"value": "",
 			"font": {
-				"size": 16,
+				"size": 17,
 				"weight": 600
 			},
 			"alignment": "center",
 			"color": "#FFFFFF",
+			"text-overflow": "ellipsis"
+		},
+		{
+			"key": "detail",
+			"type": "text",
+			"rect": [6, 26, 220, 19],
+			"value": "",
+			"font": {
+				"size": 12,
+				"weight": 400
+			},
+			"alignment": "center",
+			"color": "#A8A8A8",
 			"text-overflow": "ellipsis"
 		}
 	]
