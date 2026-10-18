@@ -33,20 +33,35 @@ Puis, dans le portail développeur Discord :
 1. <https://discord.com/developers/applications> → **New Application**
 2. **General Information** → copie l'**Application ID** dans `DISCORD_CLIENT_ID`
 3. **OAuth2** → copie le **Client Secret** dans `DISCORD_CLIENT_SECRET`
+4. **OAuth2 → Redirects** → ajoute **exactement** `https://127.0.0.1` et place-la
+   **en première position**, puis **Save Changes**
 
-Aucun bot n'est nécessaire. Aucun redirect URI non plus : le transport IPC
-n'envoie pas d'en-tête `Origin`, ce qui dispense de la vérification
-`rpc_origins`.
+L'étape 4 est un contresens de Discord qu'il faut connaître, sinon
+l'autorisation échoue systématiquement :
+
+| Ce que tu fais | Résultat |
+| --- | --- |
+| Aucune URI enregistrée | `Missing "redirect_uri" in request` |
+| Une URI **envoyée** dans la requête | `Redirect URI cannot be used in the RPC OAuth2 Authorization flow` |
+| Une URI **enregistrée**, rien d'envoyé | ✅ fonctionne |
+
+Le flux OAuth2 du RPC refuse toute redirection, mais exige qu'une URI soit
+enregistrée pour avoir une valeur par défaut. `https://127.0.0.1` est un simple
+bouche-trou — c'est la valeur que la documentation Discord elle-même impose :
+le code d'autorisation arrive par la socket IPC et la redirection n'est jamais
+suivie.
+
+Aucun bot n'est nécessaire.
 
 > `.env` est ignoré par git. Ne committe jamais ces valeurs et ne les colle
 > jamais dans une conversation.
 
-### PKCE d'abord, secret ensuite
+### PKCE n'est pas utilisable
 
-`DISCORD_USE_PKCE=true` (défaut) tente le flux **PKCE**, où aucun
-`client_secret` n'est utilisé : intéressant pour le plugin final, puisqu'il
-n'y aurait alors aucun secret à embarquer. Si Discord refuse, repasse à
-`false` et l'échange se fera avec le `client_secret`.
+Le flux OAuth2 du RPC interdit les clients publics, donc `client_secret` est
+**obligatoire**. Les deux erreurs ci-dessus se contredisent précisément parce
+que PKCE exige une redirection, que ce flux refuse. C'est aussi la raison pour
+laquelle le plugin Discord officiel d'Elgato embarque un secret.
 
 ## Commandes
 
@@ -84,6 +99,8 @@ réellement).
 | `GET_IMAGE` → data URI PNG | oui, image de 15 Ko récupérée et écrite sur disque |
 | `GET_SELECTED_VOICE_CHANNEL` sans autorisation | refusé : `RPC 4006 Not authenticated or invalid scope` |
 | `GET_GUILDS`, `GET_VOICE_SETTINGS` sans autorisation | refusés (`4006`) |
+| PKCE | impossible : exige une redirection, que le flux RPC interdit |
+| `redirect_uri` | doit être **enregistré** mais **jamais envoyé** |
 
 D'où la conclusion structurante : **les avatars sont accessibles sans rien,
 mais la liste des participants exige une autorisation unique** (scope `rpc`).
@@ -140,7 +157,9 @@ client local ; le CDN n'est qu'un secours.
 | --- | --- |
 | `Aucun pipe Discord trouvé` | Le client Discord n'est pas lancé |
 | `RPC 4006` | Autorisation absente ou expirée → `npm run auth` |
-| `Echange de token refusé (HTTP 400)` | PKCE refusé par l'application → `DISCORD_USE_PKCE=false` |
+| `Missing "redirect_uri" in request` | Enregistre `https://127.0.0.1` dans OAuth2 → Redirects |
+| `Redirect URI cannot be used in the RPC OAuth2 Authorization flow` | L'URI est envoyée dans la requête : elle doit seulement être enregistrée |
+| `Echange de token refusé (HTTP 400)` | `client_id` / `client_secret` erronés |
 | Rien ne se met à jour dans `watch` | Vérifie que tu es bien connecté à un salon vocal |
 
 Le token est stocké dans `.data/auth.json` (ignoré par git). Le supprimer force

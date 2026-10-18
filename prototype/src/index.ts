@@ -42,7 +42,6 @@ function authOptions(config: Config): AuthOptions {
     clientId: config.clientId,
     clientSecret: config.clientSecret,
     scopes: config.scopes,
-    usePkce: config.usePkce,
   };
 }
 

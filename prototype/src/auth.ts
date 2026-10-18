@@ -6,14 +6,37 @@
  * commandes relatives au vocal renvoient `RPC 4006 Not authenticated or invalid
  * scope`. Une autorisation unique (scope `rpc`) debloque l'ensemble.
  *
- * Deux variantes sont tentees, dans cet ordre :
- *   1. PKCE (client public) : aucun secret a embarquer dans le plugin.
- *   2. Code + client_secret : la variante historique, utilisee par Elgato.
+ * ## PKCE est impossible ici
+ *
+ * On pouvait esperer un client public, sans secret a embarquer. C'est exclu, et
+ * les deux erreurs observees se contredisent :
+ *
+ *   PKCE sans redirect_uri -> RPC 5000 : Missing "redirect_uri" in request.
+ *   PKCE avec redirect_uri -> RPC 5000 : Redirect URI cannot be used in the
+ *                                       RPC OAuth2 Authorization flow
+ *
+ * Autrement dit : le challenge PKCE fait basculer Discord sur un flux avec
+ * redirection, alors que le flux OAuth2 du RPC interdit toute redirection. Il
+ * faut donc le flux historique, et un `client_secret` pour echanger le code.
+ * C'est ce que fait le plugin Discord officiel d'Elgato.
+ *
+ * ## Le contresens du redirect_uri
+ *
+ * Le flux exige qu'une URI de redirection soit *enregistree* sur l'application,
+ * tout en refusant qu'on l'envoie dans la requete AUTHORIZE. Discord retombe
+ * alors sur la premiere URI enregistree. D'ou les deux erreurs symetriques :
+ *
+ *   aucune URI enregistree -> "Missing redirect_uri"
+ *   une URI envoyee        -> "Redirect URI cannot be used in the RPC OAuth2
+ *                              Authorization flow"
+ *
+ * A configurer une seule fois dans le portail : OAuth2 -> Redirects ->
+ * `https://127.0.0.1`, en premiere position. C'est un simple bouche-trou : le
+ * code arrive par la socket IPC, la redirection n'est jamais suivie.
  *
  * Reference : https://docs.discord.food/topics/oauth2
  */
 
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { log } from "./log.ts";
@@ -46,21 +69,9 @@ interface TokenEndpointResponse {
 
 export interface AuthOptions {
   clientId: string;
-  clientSecret: string | undefined;
+  /** Obligatoire : le RPC OAuth2 n'accepte pas de client public. */
+  clientSecret: string;
   scopes: string[];
-  usePkce: boolean;
-}
-
-// --- PKCE --------------------------------------------------------------------
-
-function base64Url(buffer: Buffer): string {
-  return buffer.toString("base64").replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
-}
-
-function createPkcePair(): { verifier: string; challenge: string } {
-  const verifier = base64Url(crypto.randomBytes(32));
-  const challenge = base64Url(crypto.createHash("sha256").update(verifier).digest());
-  return { verifier, challenge };
 }
 
 // --- Appels HTTP -------------------------------------------------------------
@@ -89,6 +100,39 @@ async function requestToken(body: URLSearchParams): Promise<TokenSet> {
 
 // --- Flux complet ------------------------------------------------------------
 
+/** URI de secours que Discord utilise quand aucune n'est envoyee dans la requete. */
+const PLACEHOLDER_REDIRECT_URI = "https://127.0.0.1";
+
+/**
+ * Transforme les erreurs opaques de Discord en consignes exploitables.
+ *
+ * Le flux OAuth2 du RPC n'accepte aucun `redirect_uri` dans la requete, mais
+ * exige qu'une URI soit *enregistree* sur l'application : c'est le contresens
+ * le plus courant de cette configuration.
+ */
+function explainAuthorizeFailure(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (message.includes("redirect_uri")) {
+    return [
+      message,
+      "",
+      "Le flux OAuth2 du RPC Discord n'accepte aucun redirect_uri dans la requete,",
+      "mais exige qu'une URI soit ENREGISTREE sur l'application (Discord utilise la",
+      "premiere de la liste par defaut).",
+      "",
+      "A faire une seule fois, dans le portail developpeur :",
+      `  1. ton application -> OAuth2 -> Redirects`,
+      `  2. ajoute exactement : ${PLACEHOLDER_REDIRECT_URI}`,
+      "  3. place-la en PREMIERE position",
+      "  4. Save Changes (l'enregistrement peut prendre une minute a se propager)",
+      "  5. relance `npm run auth`",
+    ].join("\n");
+  }
+
+  return message;
+}
+
 /**
  * Demande l'autorisation a l'utilisateur, puis echange le code contre un token.
  *
@@ -96,49 +140,44 @@ async function requestToken(body: URLSearchParams): Promise<TokenSet> {
  * l'utilisateur valide.
  */
 export async function authorize(ipc: DiscordIpc, options: AuthOptions): Promise<TokenSet> {
-  const pkce = options.usePkce ? createPkcePair() : null;
-
-  if (pkce !== null) {
-    log.info("Tentative en PKCE (client public, sans client_secret).");
-  } else if (options.clientSecret === undefined) {
+  if (options.clientSecret.trim() === "") {
     throw new Error(
-      "DISCORD_USE_PKCE=false mais aucun DISCORD_CLIENT_SECRET n'est renseigne : l'echange est impossible.",
+      "DISCORD_CLIENT_SECRET est vide. Le flux OAuth2 du RPC Discord n'accepte pas " +
+        "de client public (PKCE est refuse), un secret est donc obligatoire.\n" +
+        "Recupere-le dans le portail developpeur : OAuth2 -> Client Secret.",
     );
-  } else {
-    log.info("Tentative en code + client_secret.");
   }
 
+  log.info(`Scopes demandes : ${options.scopes.join(", ")}`);
   log.warn("Une fenetre d'autorisation va s'ouvrir dans Discord : accepte-la pour continuer.");
 
-  const authArgs: Record<string, unknown> = {
-    client_id: options.clientId,
-    scopes: options.scopes,
-    response_type: "code",
-  };
-  if (pkce !== null) {
-    authArgs["code_challenge"] = pkce.challenge;
-    authArgs["code_challenge_method"] = "S256";
+  let code: string;
+  try {
+    const result = await ipc.call<{ code: string }>(
+      "AUTHORIZE",
+      { client_id: options.clientId, scopes: options.scopes },
+      AUTHORIZE_TIMEOUT_MS,
+    );
+
+    if (typeof result?.code !== "string") {
+      throw new Error(`Reponse AUTHORIZE inattendue : ${JSON.stringify(result)}`);
+    }
+    code = result.code;
+  } catch (error) {
+    throw new Error(explainAuthorizeFailure(error));
   }
 
-  const result = await ipc.call<{ code: string }>("AUTHORIZE", authArgs, AUTHORIZE_TIMEOUT_MS);
-  if (typeof result?.code !== "string") {
-    throw new Error(`Reponse AUTHORIZE inattendue : ${JSON.stringify(result)}`);
-  }
   log.ok("Code d'autorisation obtenu.");
 
-  const body = new URLSearchParams({
-    grant_type: "authorization_code",
-    code: result.code,
-    client_id: options.clientId,
-  });
+  const tokens = await requestToken(
+    new URLSearchParams({
+      grant_type: "authorization_code",
+      code,
+      client_id: options.clientId,
+      client_secret: options.clientSecret,
+    }),
+  );
 
-  if (pkce !== null) {
-    body.set("code_verifier", pkce.verifier);
-  } else if (options.clientSecret !== undefined) {
-    body.set("client_secret", options.clientSecret);
-  }
-
-  const tokens = await requestToken(body);
   log.ok(`Autorisation accordee (scopes : ${tokens.scope}).`);
   return tokens;
 }
@@ -148,24 +187,22 @@ export async function refresh(
   tokens: TokenSet,
   options: Pick<AuthOptions, "clientId" | "clientSecret">,
 ): Promise<TokenSet> {
-  const body = new URLSearchParams({
-    grant_type: "refresh_token",
-    refresh_token: tokens.refresh_token,
-    client_id: options.clientId,
-  });
-  if (options.clientSecret !== undefined) {
-    body.set("client_secret", options.clientSecret);
-  }
-
   log.info("Rafraichissement du token...");
-  const refreshed = await requestToken(body);
+  const refreshed = await requestToken(
+    new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: tokens.refresh_token,
+      client_id: options.clientId,
+      client_secret: options.clientSecret,
+    }),
+  );
   log.ok("Token rafraichi.");
   return refreshed;
 }
 
 /** Associe la connexion IPC au token d'acces. */
 export async function authenticate(ipc: DiscordIpc, accessToken: string): Promise<string> {
-  const result = await ipc.call<{ scopes?: string[]; expires?: string }>("AUTHENTICATE", {
+  const result = await ipc.call<{ scopes?: string[] }>("AUTHENTICATE", {
     access_token: accessToken,
   });
   return (result?.scopes ?? []).join(" ");
