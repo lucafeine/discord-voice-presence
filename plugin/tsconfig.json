@@ -1,0 +1,14 @@
+{
+	"extends": "@tsconfig/node24/tsconfig.json",
+	"compilerOptions": {
+		"customConditions": ["node"],
+		"noImplicitOverride": true,
+		"module": "ES2022",
+		"moduleResolution": "Bundler",
+		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"types": ["node"]
+	},
+	"include": ["src/**/*.ts"],
+	"exclude": ["node_modules", "com.lucas.discord-voice-presence.sdPlugin"]
+}

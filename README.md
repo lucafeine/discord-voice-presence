@@ -22,8 +22,32 @@ pas de bot, pas de token de compte, pas de scraping.
 
 ```
 prototype/   Phase 1 — validation de la partie Discord, hors Stream Deck
-plugin/      Phase 2 — le plugin Stream Deck (à venir)
+plugin/      Phase 2 — le plugin Stream Deck (SDK 3, actions Infobar)
 ```
+
+Le prototype est le **banc d'essai** : il sert à valider la partie Discord
+(`npm run smoke`, `status`, `watch`, `preview`) et porte les tests de
+`VoiceMonitor`. Le plugin, lui, est l'artefact publié.
+
+## Plugin
+
+```powershell
+cd plugin
+npm install
+npm run build          # produit <uuid>.sdPlugin/bin/plugin.js
+npm run validate       # vérifie le manifeste
+npm run link           # installe le plugin dans Stream Deck
+npm run icons          # régénère les icônes PNG depuis les SVG
+npm run watch          # build continu + redémarrage du plugin
+```
+
+Le plugin reprend les conventions des autres plugins de l'auteur
+(`com.lucas.*`, SDK 3, `Software.MinimumVersion` 7.6, rollup).
+
+⚠️ **`sharp` ne peut pas être embarqué** dans le plugin : c'est un module natif,
+et Stream Deck exécute un bundle JavaScript unique. Il reste une devDependency,
+réservée à la génération des icônes. Le rendu de l'Infobar doit donc se faire
+avec le moteur de layouts et des assets statiques.
 
 ## Phase 1 — prototype
 

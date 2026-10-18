@@ -1,0 +1,41 @@
+{
+	"$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+	"Name": "Voice Presence",
+	"Version": "0.1.0.0",
+	"Author": "Lucas",
+	"Description": "Display the Discord voice channel participants on the Stream Deck Neo Infobar. Works alongside the official Discord plugin.",
+	"UUID": "com.lucas.discord-voice-presence",
+	"Icon": "imgs/plugin/icon",
+	"Category": "Voice Presence",
+	"CategoryIcon": "imgs/plugin/category-icon",
+	"CodePath": "bin/plugin.js",
+	"SDKVersion": 3,
+	"Software": {
+		"MinimumVersion": "7.6"
+	},
+	"Nodejs": {
+		"Version": "24"
+	},
+	"OS": [
+		{
+			"Platform": "windows",
+			"MinimumVersion": "10"
+		}
+	],
+	"Actions": [
+		{
+			"Name": "Voice Presence (Infobar)",
+			"UUID": "com.lucas.discord-voice-presence.infobar",
+			"Icon": "imgs/actions/infobar/icon",
+			"Tooltip": "Show the Discord voice channel participants on the Neo Infobar.",
+			"Controllers": ["Neo"],
+			"States": [
+				{
+					"Image": "imgs/actions/infobar/key",
+					"Name": "Voice Presence"
+				}
+			],
+			"UserTitleEnabled": false
+		}
+	]
+}

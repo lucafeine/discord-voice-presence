@@ -1,0 +1,20 @@
+{
+	"$schema": "https://schemas.elgato.com/streamdeck/plugins/layout.json",
+	"id": "voice-presence",
+	"controller": "Neo",
+	"items": [
+		{
+			"key": "status",
+			"type": "text",
+			"rect": [8, 4, 216, 42],
+			"value": "",
+			"font": {
+				"size": 16,
+				"weight": 600
+			},
+			"alignment": "center",
+			"color": "#FFFFFF",
+			"text-overflow": "ellipsis"
+		}
+	]
+}

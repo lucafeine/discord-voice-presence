@@ -14,6 +14,11 @@ out/
 *.log
 npm-debug.log*
 
+# Sortie de build du plugin Stream Deck
+*.sdPlugin/bin/
+*.sdPlugin/logs/
+*.streamDeckPlugin
+
 # Divers
 .DS_Store
 Thumbs.db
