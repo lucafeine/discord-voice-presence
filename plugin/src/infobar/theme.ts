@@ -15,7 +15,23 @@
 
 export const WIDTH = 232;
 export const HEIGHT = 50;
-export const SLOTS = 4;
+
+/**
+ * Nombre d'avatars affichables en meme temps, et largeur de la fenetre de
+ * defilement.
+ */
+export const VISIBLE_SLOTS = 4;
+
+/**
+ * Positions disponibles dans le layout.
+ *
+ * Une position d'item est FIGEE dans le layout : seules sa valeur et son opacite
+ * changent a l'execution. Avec une grille a l'ecart d'un emplacement, centrer 1,
+ * 2 ou 3 avatars tomberait forcement a cote. La grille avance donc d'un
+ * DEMI-emplacement, ce qui permet a chaque configuration centree de tomber
+ * juste : 3 positions pour 1 avatar, 2 pour 2, 1 pour 3, 0 pour 4.
+ */
+export const GRID_SLOTS = 7;
 
 /**
  * Diametre de l'avatar.
@@ -32,7 +48,7 @@ export const RING_WIDTH = 3;
 export const PITCH = 56;
 export const BADGE = 18;
 
-export const ROW_WIDTH = CIRCLE + (SLOTS - 1) * PITCH;
+export const ROW_WIDTH = CIRCLE + (VISIBLE_SLOTS - 1) * PITCH;
 export const START_X = Math.round((WIDTH - ROW_WIDTH) / 2);
 export const FRAME_Y = Math.round((HEIGHT - CIRCLE) / 2);
 export const INSET = (CIRCLE - AVATAR) / 2;
@@ -40,10 +56,23 @@ export const AVATAR_Y = FRAME_Y + INSET;
 export const AVATAR_RADIUS = AVATAR / 2;
 export const CIRCLE_RADIUS = CIRCLE / 2;
 
-/** Coin superieur gauche de l'emplacement `index`. */
-export const slotX = (index: number): number => START_X + index * PITCH;
-/** Coin superieur gauche de l'avatar de l'emplacement `index`. */
+/** Ecart entre deux positions de la grille : un demi-emplacement. */
+export const GRID_STEP = PITCH / 2;
+
+/** Coin superieur gauche de la position `index` de la grille. */
+export const slotX = (index: number): number => START_X + index * GRID_STEP;
+/** Coin superieur gauche de l'avatar de la position `index`. */
 export const avatarX = (index: number): number => slotX(index) + INSET;
+
+/**
+ * Position de depart d'une rangee centree de `count` avatars.
+ *
+ * Les positions occupees sont alors `depart + 2i`. La rangee se retrouve centree
+ * a un demi-emplacement pres, ce qui est invisible sur 232 px.
+ */
+export function centeredStart(count: number): number {
+	return Math.max(0, VISIBLE_SLOTS - count);
+}
 
 // --- Couleurs ----------------------------------------------------------------
 

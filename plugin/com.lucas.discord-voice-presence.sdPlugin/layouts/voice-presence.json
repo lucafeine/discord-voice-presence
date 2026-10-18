@@ -32,7 +32,7 @@
 			"key": "avatar1",
 			"type": "pixmap",
 			"rect": [
-				66,
+				38,
 				3,
 				44,
 				44
@@ -45,7 +45,7 @@
 			"key": "avatar2",
 			"type": "pixmap",
 			"rect": [
-				122,
+				66,
 				3,
 				44,
 				44
@@ -56,6 +56,45 @@
 		},
 		{
 			"key": "avatar3",
+			"type": "pixmap",
+			"rect": [
+				94,
+				3,
+				44,
+				44
+			],
+			"value": "",
+			"opacity": 0,
+			"zOrder": 1
+		},
+		{
+			"key": "avatar4",
+			"type": "pixmap",
+			"rect": [
+				122,
+				3,
+				44,
+				44
+			],
+			"value": "",
+			"opacity": 0,
+			"zOrder": 1
+		},
+		{
+			"key": "avatar5",
+			"type": "pixmap",
+			"rect": [
+				150,
+				3,
+				44,
+				44
+			],
+			"value": "",
+			"opacity": 0,
+			"zOrder": 1
+		},
+		{
+			"key": "avatar6",
 			"type": "pixmap",
 			"rect": [
 				178,
@@ -84,7 +123,7 @@
 			"key": "frame1",
 			"type": "pixmap",
 			"rect": [
-				63,
+				35,
 				0,
 				50,
 				50
@@ -97,7 +136,7 @@
 			"key": "frame2",
 			"type": "pixmap",
 			"rect": [
-				119,
+				63,
 				0,
 				50,
 				50
@@ -108,6 +147,45 @@
 		},
 		{
 			"key": "frame3",
+			"type": "pixmap",
+			"rect": [
+				91,
+				0,
+				50,
+				50
+			],
+			"value": "imgs/infobar/theme/frame-000000.svg",
+			"opacity": 0,
+			"zOrder": 2
+		},
+		{
+			"key": "frame4",
+			"type": "pixmap",
+			"rect": [
+				119,
+				0,
+				50,
+				50
+			],
+			"value": "imgs/infobar/theme/frame-000000.svg",
+			"opacity": 0,
+			"zOrder": 2
+		},
+		{
+			"key": "frame5",
+			"type": "pixmap",
+			"rect": [
+				147,
+				0,
+				50,
+				50
+			],
+			"value": "imgs/infobar/theme/frame-000000.svg",
+			"opacity": 0,
+			"zOrder": 2
+		},
+		{
+			"key": "frame6",
 			"type": "pixmap",
 			"rect": [
 				175,
@@ -136,7 +214,7 @@
 			"key": "badge1",
 			"type": "pixmap",
 			"rect": [
-				93,
+				65,
 				30,
 				18,
 				18
@@ -149,7 +227,7 @@
 			"key": "badge2",
 			"type": "pixmap",
 			"rect": [
-				149,
+				93,
 				30,
 				18,
 				18
@@ -160,6 +238,45 @@
 		},
 		{
 			"key": "badge3",
+			"type": "pixmap",
+			"rect": [
+				121,
+				30,
+				18,
+				18
+			],
+			"value": "",
+			"opacity": 0,
+			"zOrder": 3
+		},
+		{
+			"key": "badge4",
+			"type": "pixmap",
+			"rect": [
+				149,
+				30,
+				18,
+				18
+			],
+			"value": "",
+			"opacity": 0,
+			"zOrder": 3
+		},
+		{
+			"key": "badge5",
+			"type": "pixmap",
+			"rect": [
+				177,
+				30,
+				18,
+				18
+			],
+			"value": "",
+			"opacity": 0,
+			"zOrder": 3
+		},
+		{
+			"key": "badge6",
 			"type": "pixmap",
 			"rect": [
 				205,

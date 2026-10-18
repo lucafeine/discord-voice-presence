@@ -26,6 +26,7 @@ import {
 	AVATAR,
 	AVATAR_Y,
 	BADGE,
+	CIRCLE,
 	CUT_COLORS,
 	FRAME_Y,
 	FLASH_BAR_HEIGHT,
@@ -37,10 +38,12 @@ import {
 	FLASH_ICON_Y,
 	FLASH_TEXT_WIDTH,
 	FLASH_TEXT_X,
+	GRID_SLOTS,
+	GRID_STEP,
 	HEIGHT,
 	PITCH,
-	SLOTS,
-	START_X,
+	RING_WIDTH,
+	VISIBLE_SLOTS,
 	WIDTH,
 	Z,
 	accentSvg,
@@ -84,7 +87,7 @@ function layout(): object {
 		zOrder: Z.card
 	});
 
-	for (let index = 0; index < SLOTS; index += 1) {
+	for (let index = 0; index < GRID_SLOTS; index += 1) {
 		items.push({
 			key: `avatar${index}`,
 			type: "pixmap",
@@ -95,7 +98,7 @@ function layout(): object {
 		});
 	}
 
-	for (let index = 0; index < SLOTS; index += 1) {
+	for (let index = 0; index < GRID_SLOTS; index += 1) {
 		items.push({
 			key: `frame${index}`,
 			type: "pixmap",
@@ -106,7 +109,7 @@ function layout(): object {
 		});
 	}
 
-	for (let index = 0; index < SLOTS; index += 1) {
+	for (let index = 0; index < GRID_SLOTS; index += 1) {
 		items.push({
 			key: `badge${index}`,
 			type: "pixmap",
@@ -294,6 +297,7 @@ write("layouts/voice-presence.json", `${JSON.stringify(output, null, "\t")}\n`);
 const itemCount = (output as { items: unknown[] }).items.length;
 console.log("assets ecrits dans imgs/infobar/");
 console.log(`layout ecrit : ${itemCount} items`);
-console.log(`avatar ${AVATAR} px, cadre 50 px, anneau 3 px, pitch ${PITCH}, ${SLOTS} emplacements`);
-console.log(`depart x=${START_X}, rangee large de ${50 + (SLOTS - 1) * PITCH} px sur ${WIDTH}`);
+console.log(`avatar ${AVATAR} px, cadre ${CIRCLE} px, anneau ${RING_WIDTH} px, pitch ${PITCH}`);
+console.log(`grille : ${GRID_SLOTS} positions tous les ${GRID_STEP} px, depart x=${slotX(0)}`);
+console.log(`defilement a partir de ${VISIBLE_SLOTS + 1} participants, fenetre de ${VISIBLE_SLOTS}`);
 console.log(`theme par defaut : ${DEFAULT_BACKGROUND}`);

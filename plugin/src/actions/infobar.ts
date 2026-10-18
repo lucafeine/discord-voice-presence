@@ -12,7 +12,7 @@ import {
 	type VoiceAlert,
 	type VoicePresenceState
 } from "../core/voice-presence-service.js";
-import { DEFAULT_BACKGROUND, avatarX, slotX } from "../infobar/theme.js";
+import { DEFAULT_BACKGROUND, GRID_SLOTS, VISIBLE_SLOTS, centeredStart } from "../infobar/theme.js";
 import { ensureTheme, type ThemeFiles } from "../infobar/theme-writer.js";
 import type { Participant } from "../discord/types.js";
 
@@ -21,6 +21,14 @@ const LAYOUT = "layouts/voice-presence.json";
 const BADGE_MUTE = "imgs/infobar/badge-mute.svg";
 const BADGE_DEAF = "imgs/infobar/badge-deafen.svg";
 const AVATAR_PLACEHOLDER = "imgs/infobar/avatar-placeholder.svg";
+
+/**
+ * Periode de defilement quand il y a trop de monde.
+ *
+ * Assez lent pour qu'on ait le temps de reconnaitre les visages, et deux mises a
+ * jour par cycle, tres loin de la limite de 10 par seconde des guidelines.
+ */
+const SCROLL_INTERVAL_MS = 3_000;
 
 /**
  * Reglages exposes dans le Property Inspector.
@@ -33,10 +41,7 @@ interface Settings {
 }
 
 /** Nombre d'emplacements definis dans le layout. */
-const SLOTS = 4;
-
-/** Au-dela de deux personnes, la rangee est centree plutot qu'alignee a gauche. */
-const LEFT_ALIGNED_MAX = 2;
+const SLOTS = GRID_SLOTS;
 
 /** Duree d'affichage de chaque alerte, en millisecondes. */
 const ALERT_DURATION_MS: Record<VoiceAlert["kind"], number> = {
@@ -121,6 +126,10 @@ export class VoicePresenceInfobar extends SingletonAction {
 	private readonly alerts = new Map<string, AlertSlot>();
 	private readonly flashes = new Map<string, FlashSlot>();
 
+	/** Decalage de la fenetre de defilement, par action. */
+	private readonly scrollOffsets = new Map<string, number>();
+	private readonly scrollTimers = new Map<string, NodeJS.Timeout>();
+
 	override async onWillAppear(ev: WillAppearEvent): Promise<void> {
 		if (!ev.action.isNeoInfobar()) {
 			this.logger.warn("Action placee ailleurs que sur l'Infobar d'un Neo : ignoree.");
@@ -186,6 +195,7 @@ export class VoicePresenceInfobar extends SingletonAction {
 
 		this.#stopFlash(id);
 		this.flashes.delete(id);
+		this.#stopScroll(id);
 		this.themes.delete(id);
 
 		this.lastSent.delete(id);
@@ -294,6 +304,50 @@ export class VoicePresenceInfobar extends SingletonAction {
 		slot.on = false;
 	}
 
+	// --- Defilement ----------------------------------------------------------
+
+	/** Decalage courant de la fenetre de defilement. */
+	#scrollOffset(id: string): number {
+		return this.scrollOffsets.get(id) ?? 0;
+	}
+
+	/** Demarre le defilement si necessaire. Sans effet s'il tourne deja. */
+	#syncScroll(infobar: InfobarTarget, scrolling: boolean): void {
+		const id = infobar.id;
+
+		if (!scrolling) {
+			this.#stopScroll(id);
+			return;
+		}
+
+		if (this.scrollTimers.has(id)) return;
+
+		const timer = setInterval(() => {
+			const count = this.lastState.get(id)?.participants.length ?? 0;
+
+			if (count <= VISIBLE_SLOTS) {
+				this.#stopScroll(id);
+				return;
+			}
+
+			this.scrollOffsets.set(id, (this.#scrollOffset(id) + 1) % count);
+			void this.#render(infobar);
+		}, SCROLL_INTERVAL_MS);
+
+		this.scrollTimers.set(id, timer);
+	}
+
+	#stopScroll(id: string): void {
+		const timer = this.scrollTimers.get(id);
+		if (timer !== undefined) {
+			clearInterval(timer);
+			this.scrollTimers.delete(id);
+		}
+
+		// Revenir au debut evite de reprendre au milieu quand le monde revient.
+		this.scrollOffsets.delete(id);
+	}
+
 	#flashFor(id: string): FlashSlot {
 		const existing = this.flashes.get(id);
 		if (existing !== undefined) return existing;
@@ -356,12 +410,19 @@ export class VoicePresenceInfobar extends SingletonAction {
 		const showAvatars = state.status === "ready" && state.channel !== null && participants.length > 0;
 
 		if (showAvatars) {
-			const visible = participants.slice(0, SLOTS);
-			const start = this.#startSlot(visible.length);
+			// Au-dela de la fenetre, on fait defiler. La fenetre est alors alignee
+			// a gauche pour balayer toute la rangee ; sinon la rangee est centree.
+			const scrolling = participants.length > VISIBLE_SLOTS;
+			const visible = scrolling
+				? scrollWindow(participants, this.#scrollOffset(infobar.id))
+				: participants;
+			const start = scrolling ? 0 : this.#startSlot(visible.length);
 			const avatars = voicePresence.avatars;
 
 			for (const [index, participant] of visible.entries()) {
-				const slot = start + index;
+				// Les positions occupees avancent d'un emplacement plein, alors que
+				// la grille avance d'un demi : d'ou le pas de 2.
+				const slot = start + index * 2;
 
 				const dataUrl =
 					avatars === null ? null : await avatars.get(participant.id, participant.avatarHash);
@@ -375,6 +436,10 @@ export class VoicePresenceInfobar extends SingletonAction {
 				payload[`badge${slot}`] =
 					badge === null ? { value: "", opacity: 0 } : { value: badge, opacity: 1 };
 			}
+
+			this.#syncScroll(infobar, scrolling);
+		} else {
+			this.#stopScroll(infobar.id);
 		}
 
 		await this.#applyAlert(payload, infobar.id, state, showAvatars, theme);
@@ -483,8 +548,7 @@ export class VoicePresenceInfobar extends SingletonAction {
 
 	/** Emplacement de depart, pour centrer la rangee quand elle est courte. */
 	#startSlot(count: number): number {
-		if (count <= LEFT_ALIGNED_MAX) return 0;
-		return Math.max(0, Math.floor((SLOTS - count) / 2));
+		return centeredStart(count);
 	}
 
 	/** Badge a afficher, ou `null`. Le casque prime : il coupe aussi le micro. */
@@ -514,6 +578,21 @@ const ALERT_DETAIL: Record<Exclude<VoiceAlert["kind"], "channel">, string> = {
 	joined: "a rejoint le vocal",
 	left: "a quitte le vocal"
 };
+
+/**
+ * Fenetre de `VISIBLE_SLOTS` participants, circulaire.
+ *
+ * Circulaire et non lineaire : les derniers reviennent au debut, donc personne
+ * ne disparait de l'affichage.
+ */
+function scrollWindow(participants: readonly Participant[], offset: number): Participant[] {
+	if (participants.length <= VISIBLE_SLOTS) return [...participants];
+
+	return Array.from(
+		{ length: VISIBLE_SLOTS },
+		(_, index) => participants[(offset + index) % participants.length]!
+	);
+}
 
 /**
  * Deux items sont identiques si leur valeur et leur opacite le sont.

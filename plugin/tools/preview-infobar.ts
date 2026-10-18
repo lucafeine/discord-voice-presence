@@ -34,9 +34,10 @@ import {
 	FLASH_ICON_Y,
 	FLASH_TEXT_X,
 	HEIGHT,
-	SLOTS,
+	VISIBLE_SLOTS,
 	WIDTH,
 	avatarX,
+	centeredStart,
 	slotX,
 	DEFAULT_BACKGROUND,
 	themePaths
@@ -92,6 +93,8 @@ interface AlertSpec {
 
 interface CaseSpec {
 	count: number;
+	/** Decalage de la fenetre de defilement. */
+	offset?: number;
 	speaking?: number;
 	badge?: string;
 	alert?: AlertSpec;
@@ -176,27 +179,36 @@ async function compose(spec: CaseSpec): Promise<Buffer> {
 		{ input: await toPng(readPlugin(theme.card), WIDTH, HEIGHT), left: 0, top: 0 }
 	];
 
-	for (let index = 0; index < spec.count && index < SLOTS; index += 1) {
+	// Meme regle que le plugin : centre tant que tout tient, sinon fenetre
+	// alignee a gauche.
+	const scrolling = spec.count > VISIBLE_SLOTS;
+	const shown = scrolling ? Math.min(VISIBLE_SLOTS, spec.count) : spec.count;
+	const start = scrolling ? 0 : centeredStart(shown);
+
+	for (let index = 0; index < shown; index += 1) {
+		const slot = start + index * 2;
 		layers.push({
-			input: await squareAvatar(String.fromCharCode(65 + index), COLORS[index] ?? "#5865f2"),
-			left: avatarX(index),
+			input: await squareAvatar(String.fromCharCode(65 + ((spec.offset ?? 0) + index) % Math.max(1, spec.count)), COLORS[((spec.offset ?? 0) + index) % COLORS.length] ?? "#5865f2"),
+			left: avatarX(slot),
 			top: AVATAR_Y
 		});
 	}
 
-	for (let index = 0; index < spec.count && index < SLOTS; index += 1) {
+	for (let index = 0; index < shown; index += 1) {
+		const slot = start + index * 2;
 		const speaking = index === spec.speaking;
 		layers.push({
 			input: await toPng(readPlugin(speaking ? theme.frameSpeaking : theme.frame), 50, 50),
-			left: slotX(index),
+			left: slotX(slot),
 			top: 0
 		});
 	}
 
 	if (spec.badge !== undefined) {
+		const slot = start;
 		layers.push({
 			input: await toPng(read(`badge-${spec.badge}.svg`), BADGE, BADGE),
-			left: avatarX(0) + AVATAR - BADGE + 1,
+			left: avatarX(slot) + AVATAR - BADGE + 1,
 			top: AVATAR_Y + AVATAR - BADGE + 1
 		});
 	}
@@ -223,20 +235,19 @@ async function compose(spec: CaseSpec): Promise<Buffer> {
 }
 
 const cases: Array<[string, CaseSpec]> = [
-	["Rangee : 1 participant", { count: 1 }],
-	["Rangee : 3 participants, le 2e parle", { count: 3, speaking: 1 }],
-	["Rangee : 4 participants, le 3e parle, badge micro", { count: 4, speaking: 2, badge: "mute" }],
+	["1 participant : centre", { count: 1 }],
+	["2 participants : centres", { count: 2, speaking: 1 }],
+	["3 participants : centres", { count: 3, speaking: 1 }],
+	["4 participants : rangee pleine, le 3e parle", { count: 4, speaking: 2, badge: "mute" }],
+	["5 participants : defilement, fenetre 1", { count: 5 }],
+	["5 participants : defilement, fenetre 2", { count: 5, offset: 1, speaking: 0 }],
 	[
 		"Annonce : arrivee",
 		{ count: 3, alert: { kind: "joined", name: "Camille", title: "Camille", detail: "a rejoint le vocal" } }
 	],
 	[
-		"Annonce : depart",
-		{ count: 3, alert: { kind: "left", name: "Rayan", title: "Rayan", detail: "a quitte le vocal" } }
-	],
-	[
 		"Annonce : salon (sans avatar)",
-		{ count: 0, alert: { kind: "channel", title: "Le cocon des copaings", detail: "『🦜』Parlote" } }
+		{ count: 0, alert: { kind: "channel", title: "Le cocon des copaings", detail: "????Parlote" } }
 	],
 	["Rappel : micro coupe", { count: 3, speaking: 1, flash: "mute" }],
 	["Rappel : casque coupe", { count: 4, badge: "deafen", flash: "deafen" }]
