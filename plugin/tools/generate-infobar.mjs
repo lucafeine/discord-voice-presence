@@ -44,17 +44,23 @@ const layoutsDir = path.join(plugin, "layouts");
 
 const WIDTH = 232;
 const HEIGHT = 50;
-const SLOTS = 5;
+const SLOTS = 4;
 
-/** Diametre de l'avatar, et donc du trou du cadre. */
-const AVATAR = 34;
+/**
+ * Diametre de l'avatar.
+ *
+ * C'est le maximum exploitable : la toile fait 50 px de haut, et il faut garder
+ * de quoi loger l'anneau de part et d'autre. 44 + 2 x 3 = 50, soit toute la
+ * hauteur. Au-dela, l'anneau n'aurait plus de place.
+ */
+const AVATAR = 44;
 /** Diametre du cadre, et donc bord exterieur de l'anneau. */
-const CIRCLE = 40;
+const CIRCLE = 50;
 /** Epaisseur de l'anneau, dans la bande entre l'avatar et le bord du cadre. */
 const RING_WIDTH = 3;
 /** Ecart entre deux emplacements. */
-const PITCH = 44;
-const BADGE = 15;
+const PITCH = 56;
+const BADGE = 18;
 
 const ROW_WIDTH = CIRCLE + (SLOTS - 1) * PITCH;
 const START_X = Math.round((WIDTH - ROW_WIDTH) / 2);
@@ -81,12 +87,12 @@ const frameX = (index) => slotX(index);
  * Un seul jeu d'items pour toutes les alertes : c'est la couleur de l'accent et
  * le contenu du texte qui changent, pas la geometrie.
  */
-const ALERT_FRAME_X = 10;
+const ALERT_FRAME_X = 8;
 const ALERT_FRAME_Y = FRAME_Y;
 const ALERT_AVATAR_X = ALERT_FRAME_X + INSET;
 const ALERT_AVATAR_Y = FRAME_Y + INSET;
 const ALERT_TEXT_X = ALERT_FRAME_X + CIRCLE + 12;
-const ALERT_TEXT_WIDTH = WIDTH - ALERT_TEXT_X - 10;
+const ALERT_TEXT_WIDTH = WIDTH - ALERT_TEXT_X - 8;
 
 /** Ordres de superposition, du fond vers l'avant. */
 const Z = {
@@ -142,32 +148,35 @@ function disc(cx, cy, radius) {
 /**
  * Cadre pose sur l'avatar.
  *
- * Sans anneau : la couverture part du bord de l'avatar, donc tout le cadre est
- * de la couleur passee et seul le disque de l'avatar reste visible.
+ * Deux contraintes se croisent ici.
  *
- * Avec anneau : la couverture ne commence qu'au-dela de la bande de l'anneau,
- * ce qui laisse l'anneau vert apparent autour de l'avatar.
+ * 1. Le trou doit faire EXACTEMENT le diametre de l'avatar, c'est-a-dire son
+ *    cercle inscrit. Un trou plus grand ne coupe pas les coins et l'avatar
+ *    ressort en carre aux coins arrondis.
  *
- * La couleur de couverture doit correspondre a ce qui se trouve DERRIERE le
- * cadre, sans quoi elle apparait comme un carre : celle de la carte dans la
- * rangee, celle de l'aplat dans une alerte.
+ * 2. La couverture ne doit PAS depasser l'emprise de l'avatar. Le cadre occupe
+ *    toute la hauteur de la toile : une couverture carree de sa taille entiere
+ *    deborderait de la carte et effacerait ses coins arrondis. Elle est donc
+ *    limitee a l'emprise de l'avatar, ce qui la reduit a ses quatre coins.
+ *
+ * Consequence : l'anneau chevauche la couronne des coins, il est donc dessine
+ * APRES la couverture. Dans l'autre ordre, il serait recouvert.
  */
 function frameSvg(coverColor, speaking = false) {
 	const centre = CIRCLE_RADIUS;
-	const coverRadius = speaking ? CIRCLE_RADIUS : AVATAR_RADIUS;
+	const inset = (CIRCLE - AVATAR) / 2;
+	const inner = CIRCLE - inset;
 
-	const parts = [];
+	const parts = [
+		`  <path d="M ${inset} ${inset} H ${inner} V ${inner} H ${inset} Z ${disc(centre, centre, AVATAR_RADIUS)}" fill="${coverColor}" fill-rule="evenodd"/>`
+	];
+
 	if (speaking) {
 		const ringRadius = (AVATAR_RADIUS + CIRCLE_RADIUS) / 2;
 		parts.push(
 			`  <circle cx="${centre}" cy="${centre}" r="${ringRadius}" fill="none" stroke="${SPEAKING_COLOR}" stroke-width="${RING_WIDTH}"/>`
 		);
 	}
-
-	// Carre plein, moins un disque : la couverture des coins.
-	parts.push(
-		`  <path d="M 0 0 H ${CIRCLE} V ${CIRCLE} H 0 Z ${disc(centre, centre, coverRadius)}" fill="${coverColor}" fill-rule="evenodd"/>`
-	);
 
 	return `<svg xmlns="http://www.w3.org/2000/svg" width="${CIRCLE}" height="${CIRCLE}">
 ${parts.join("\n")}

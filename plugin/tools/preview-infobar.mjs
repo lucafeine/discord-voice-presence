@@ -25,11 +25,11 @@ const outDir = path.join(root, "out");
 // Meme geometrie que tools/generate-infobar.mjs
 const WIDTH = 232;
 const HEIGHT = 50;
-const SLOTS = 5;
-const AVATAR = 34;
-const CIRCLE = 40;
-const PITCH = 44;
-const BADGE = 15;
+const SLOTS = 4;
+const AVATAR = 44;
+const CIRCLE = 50;
+const PITCH = 56;
+const BADGE = 18;
 const ROW_WIDTH = CIRCLE + (SLOTS - 1) * PITCH;
 const START_X = Math.round((WIDTH - ROW_WIDTH) / 2);
 const FRAME_Y = Math.round((HEIGHT - CIRCLE) / 2);
@@ -40,7 +40,7 @@ const slotX = (index) => START_X + index * PITCH;
 const avatarX = (index) => slotX(index) + INSET;
 
 // Meme geometrie de surcouche que tools/generate-infobar.mjs
-const ALERT_FRAME_X = 10;
+const ALERT_FRAME_X = 8;
 const ALERT_FRAME_Y = FRAME_Y;
 const ALERT_AVATAR_X = ALERT_FRAME_X + INSET;
 const ALERT_TEXT_X = ALERT_FRAME_X + CIRCLE + 12;

@@ -22,7 +22,7 @@ const BADGE_DEAF = "imgs/infobar/badge-deafen.svg";
 const AVATAR_PLACEHOLDER = "imgs/infobar/avatar-placeholder.svg";
 
 /** Nombre d'emplacements definis dans le layout. */
-const SLOTS = 5;
+const SLOTS = 4;
 
 /** Au-dela de deux personnes, la rangee est centree plutot qu'alignee a gauche. */
 const LEFT_ALIGNED_MAX = 2;
@@ -31,7 +31,7 @@ const LEFT_ALIGNED_MAX = 2;
 const ALERT_DURATION_MS: Record<VoiceAlert["kind"], number> = {
 	joined: 3500,
 	left: 3500,
-	channel: 3000
+	channel: 2000
 };
 
 /**

@@ -93,6 +93,15 @@ export class VoicePresenceService {
 	#avatars: AvatarCache | null = null;
 	/** Identifiant de l'utilisateur courant, connu apres la connexion. */
 	#selfId: string | null = null;
+
+	/**
+	 * Vrai une fois le salon annonce.
+	 *
+	 * Le nom du salon n'est utile qu'au moment ou l'on decouvre ou l'on est : le
+	 * repeter a chaque changement de salon occupe l'ecran pour rien, alors que
+	 * les avatars sont l'information utile.
+	 */
+	#channelAnnounced = false;
 	#starting = false;
 	#stopped = false;
 	#authorizing = false;
@@ -251,6 +260,9 @@ export class VoicePresenceService {
 		this.#ipc = null;
 		this.#monitor = null;
 		this.#avatars = null;
+		// Une reconnexion redonne droit a une annonce du salon : c'est de nouveau
+		// une decouverte.
+		this.#channelAnnounced = false;
 	}
 
 	#stop(): void {
@@ -262,6 +274,7 @@ export class VoicePresenceService {
 		}
 
 		this.#reconnectAttempts = 0;
+		this.#channelAnnounced = false;
 		this.#teardown();
 		this.#state = INITIAL;
 	}
@@ -302,8 +315,10 @@ export class VoicePresenceService {
 			guild
 		});
 
-		// Annonce du salon rejoint : c'est le seul moment ou son nom est utile.
-		if (channel !== null) {
+		// Annonce du salon : une seule fois, a la connexion. Le repeter a chaque
+		// changement de salon masquerait les avatars sans rien apprendre.
+		if (channel !== null && !this.#channelAnnounced) {
+			this.#channelAnnounced = true;
 			this.#emitAlert({ kind: "channel", channel: channel.name, guild });
 		}
 	}

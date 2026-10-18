@@ -19,10 +19,10 @@
 			"key": "avatar0",
 			"type": "pixmap",
 			"rect": [
-				11,
-				8,
-				34,
-				34
+				10,
+				3,
+				44,
+				44
 			],
 			"value": "",
 			"opacity": 0,
@@ -32,10 +32,10 @@
 			"key": "avatar1",
 			"type": "pixmap",
 			"rect": [
-				55,
-				8,
-				34,
-				34
+				66,
+				3,
+				44,
+				44
 			],
 			"value": "",
 			"opacity": 0,
@@ -45,10 +45,10 @@
 			"key": "avatar2",
 			"type": "pixmap",
 			"rect": [
-				99,
-				8,
-				34,
-				34
+				122,
+				3,
+				44,
+				44
 			],
 			"value": "",
 			"opacity": 0,
@@ -58,23 +58,10 @@
 			"key": "avatar3",
 			"type": "pixmap",
 			"rect": [
-				143,
-				8,
-				34,
-				34
-			],
-			"value": "",
-			"opacity": 0,
-			"zOrder": 1
-		},
-		{
-			"key": "avatar4",
-			"type": "pixmap",
-			"rect": [
-				187,
-				8,
-				34,
-				34
+				178,
+				3,
+				44,
+				44
 			],
 			"value": "",
 			"opacity": 0,
@@ -84,10 +71,10 @@
 			"key": "frame0",
 			"type": "pixmap",
 			"rect": [
-				8,
-				5,
-				40,
-				40
+				7,
+				0,
+				50,
+				50
 			],
 			"value": "imgs/infobar/frame.svg",
 			"opacity": 0,
@@ -97,10 +84,10 @@
 			"key": "frame1",
 			"type": "pixmap",
 			"rect": [
-				52,
-				5,
-				40,
-				40
+				63,
+				0,
+				50,
+				50
 			],
 			"value": "imgs/infobar/frame.svg",
 			"opacity": 0,
@@ -110,10 +97,10 @@
 			"key": "frame2",
 			"type": "pixmap",
 			"rect": [
-				96,
-				5,
-				40,
-				40
+				119,
+				0,
+				50,
+				50
 			],
 			"value": "imgs/infobar/frame.svg",
 			"opacity": 0,
@@ -123,23 +110,10 @@
 			"key": "frame3",
 			"type": "pixmap",
 			"rect": [
-				140,
-				5,
-				40,
-				40
-			],
-			"value": "imgs/infobar/frame.svg",
-			"opacity": 0,
-			"zOrder": 2
-		},
-		{
-			"key": "frame4",
-			"type": "pixmap",
-			"rect": [
-				184,
-				5,
-				40,
-				40
+				175,
+				0,
+				50,
+				50
 			],
 			"value": "imgs/infobar/frame.svg",
 			"opacity": 0,
@@ -149,10 +123,10 @@
 			"key": "badge0",
 			"type": "pixmap",
 			"rect": [
-				31,
-				28,
-				15,
-				15
+				37,
+				30,
+				18,
+				18
 			],
 			"value": "",
 			"opacity": 0,
@@ -162,10 +136,10 @@
 			"key": "badge1",
 			"type": "pixmap",
 			"rect": [
-				75,
-				28,
-				15,
-				15
+				93,
+				30,
+				18,
+				18
 			],
 			"value": "",
 			"opacity": 0,
@@ -175,10 +149,10 @@
 			"key": "badge2",
 			"type": "pixmap",
 			"rect": [
-				119,
-				28,
-				15,
-				15
+				149,
+				30,
+				18,
+				18
 			],
 			"value": "",
 			"opacity": 0,
@@ -188,23 +162,10 @@
 			"key": "badge3",
 			"type": "pixmap",
 			"rect": [
-				163,
-				28,
-				15,
-				15
-			],
-			"value": "",
-			"opacity": 0,
-			"zOrder": 3
-		},
-		{
-			"key": "badge4",
-			"type": "pixmap",
-			"rect": [
-				207,
-				28,
-				15,
-				15
+				205,
+				30,
+				18,
+				18
 			],
 			"value": "",
 			"opacity": 0,
@@ -240,10 +201,10 @@
 			"key": "alertAvatar",
 			"type": "pixmap",
 			"rect": [
-				13,
-				8,
-				34,
-				34
+				11,
+				3,
+				44,
+				44
 			],
 			"value": "",
 			"opacity": 0,
@@ -253,10 +214,10 @@
 			"key": "alertFrame",
 			"type": "pixmap",
 			"rect": [
-				10,
-				5,
-				40,
-				40
+				8,
+				0,
+				50,
+				50
 			],
 			"value": "imgs/infobar/frame.svg",
 			"opacity": 0,
@@ -266,9 +227,9 @@
 			"key": "alertTitle",
 			"type": "text",
 			"rect": [
-				62,
+				70,
 				8,
-				160,
+				154,
 				20
 			],
 			"value": "",
@@ -285,9 +246,9 @@
 			"key": "alertDetail",
 			"type": "text",
 			"rect": [
-				62,
+				70,
 				28,
-				160,
+				154,
 				16
 			],
 			"value": "",
