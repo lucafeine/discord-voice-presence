@@ -152,6 +152,14 @@ export class VoiceMonitor extends EventEmitter<VoiceMonitorEvents> {
       });
       this.#listening = true;
     }
+
+    // `VOICE_CHANNEL_SELECT` ne depend PAS du salon courant, et doit donc etre
+    // souscrit ici, une fois pour toutes. Le souscrire en meme temps que les
+    // evenements du salon revenait a ne jamais l'ecouter quand le plugin
+    // demarrait hors vocal : il ne pouvait alors plus apprendre qu'on venait
+    // d'entrer dans un salon.
+    await this.#trySubscribe(VOICE_CHANNEL_SELECT, undefined);
+
     await this.refresh();
   }
 
@@ -199,6 +207,16 @@ export class VoiceMonitor extends EventEmitter<VoiceMonitorEvents> {
 
     if (changed) this.emit("channel", channel);
     this.emit("update", this.participants, channel);
+
+    // Trace utile : sans elle, l'absence de souscription au salon ne se voyait
+    // nulle part dans le journal.
+    if (changed) {
+      log.info(
+        channel === null
+          ? "Hors vocal : aucun salon selectionne."
+          : `Salon courant : ${channel.name}`
+      );
+    }
 
     if (changed && nextId !== null) await this.#subscribe(nextId);
   }
@@ -266,8 +284,6 @@ export class VoiceMonitor extends EventEmitter<VoiceMonitorEvents> {
       const ok = await this.#trySubscribe(evt, args);
       if (!ok) await this.#trySubscribe(evt, undefined);
     }
-
-    await this.#trySubscribe(VOICE_CHANNEL_SELECT, undefined);
   }
 
   async #unsubscribe(channelId: Snowflake): Promise<void> {
