@@ -32,36 +32,34 @@ Puis, dans le portail développeur Discord :
 
 1. <https://discord.com/developers/applications> → **New Application**
 2. **General Information** → copie l'**Application ID** dans `DISCORD_CLIENT_ID`
-3. **OAuth2** → copie le **Client Secret** dans `DISCORD_CLIENT_SECRET`
-4. **OAuth2 → Redirects** → ajoute **exactement** `https://127.0.0.1` et place-la
-   **en première position**, puis **Save Changes**
+3. **OAuth2** → active **Public Client** → **Save Changes**
+4. **OAuth2 → Redirects** → ajoute `http://localhost` en **première position** →
+   **Save Changes**
 
-L'étape 4 est un contresens de Discord qu'il faut connaître, sinon
-l'autorisation échoue systématiquement :
+Aucun bot, et surtout **aucun `client_secret`**.
 
-| Ce que tu fais | Résultat |
+### Pourquoi ces deux réglages sont obligatoires
+
+Ce sont les deux pièges de cette configuration, et ils produisent des erreurs
+qui ne disent pas ce qu'il faut corriger :
+
+| Réglage manquant | Erreur obtenue |
 | --- | --- |
-| Aucune URI enregistrée | `Missing "redirect_uri" in request` |
-| Une URI **envoyée** dans la requête | `Redirect URI cannot be used in the RPC OAuth2 Authorization flow` |
-| Une URI **enregistrée**, rien d'envoyé | ✅ fonctionne |
+| **Public Client** désactivé | `HTTP 401 invalid_client` à l'échange du code |
+| Aucune URI dans **Redirects** | `Missing "redirect_uri" in request` |
+| URI **envoyée** dans la requête | `Redirect URI cannot be used in the RPC OAuth2 Authorization flow` |
+| Les deux réglages en place | ✅ |
 
-Le flux OAuth2 du RPC refuse toute redirection, mais exige qu'une URI soit
-enregistrée pour avoir une valeur par défaut. `https://127.0.0.1` est un simple
-bouche-trou — c'est la valeur que la documentation Discord elle-même impose :
-le code d'autorisation arrive par la socket IPC et la redirection n'est jamais
-suivie.
+**Public Client** autorise PKCE, donc l'absence de secret. C'est ce qui permet
+de publier le plugin sans embarquer de valeur extractible.
 
-Aucun bot n'est nécessaire.
+L'URI de redirection, elle, est un contresens : le flux OAuth2 du RPC refuse
+toute redirection mais exige qu'une URI soit enregistrée pour avoir une valeur
+par défaut. Elle n'est jamais suivie — le code d'autorisation arrive par la
+socket IPC.
 
 > `.env` est ignoré par git. Ne committe jamais ces valeurs et ne les colle
 > jamais dans une conversation.
-
-### PKCE n'est pas utilisable
-
-Le flux OAuth2 du RPC interdit les clients publics, donc `client_secret` est
-**obligatoire**. Les deux erreurs ci-dessus se contredisent précisément parce
-que PKCE exige une redirection, que ce flux refuse. C'est aussi la raison pour
-laquelle le plugin Discord officiel d'Elgato embarque un secret.
 
 ## Commandes
 
@@ -116,8 +114,10 @@ réellement).
 | `GET_IMAGE` → data URI PNG | oui, image de 15 Ko récupérée et écrite sur disque |
 | `GET_SELECTED_VOICE_CHANNEL` sans autorisation | refusé : `RPC 4006 Not authenticated or invalid scope` |
 | `GET_GUILDS`, `GET_VOICE_SETTINGS` sans autorisation | refusés (`4006`) |
-| PKCE | impossible : exige une redirection, que le flux RPC interdit |
+| PKCE + Public Client | ✅ fonctionne — échange du code sans aucun `client_secret` |
+| PKCE sans Public Client | ❌ `HTTP 401 invalid_client` |
 | `redirect_uri` | doit être **enregistré** mais **jamais envoyé** |
+| `AUTHENTICATE` après l'échange | obligatoire en PKCE ; renvoie `4002` dans l'autre flux |
 | `VOICE_STATE_CREATE` / `DELETE` | reçus en direct, arrivées et départs correctement identifiés |
 | `SPEAKING_START` / `STOP` | reçus en direct, malgré une documentation qui les annonce fragiles |
 | `VOICE_CHANNEL_SELECT` | reçu à chaque changement de salon, avec re-souscription |
@@ -179,9 +179,10 @@ client local ; le CDN n'est qu'un secours.
 | --- | --- |
 | `Aucun pipe Discord trouvé` | Le client Discord n'est pas lancé |
 | `RPC 4006` | Autorisation absente ou expirée → `npm run auth` |
-| `Missing "redirect_uri" in request` | Enregistre `https://127.0.0.1` dans OAuth2 → Redirects |
+| `HTTP 401 invalid_client` | **Public Client** n'est pas activé sur l'application Discord |
+| `Missing "redirect_uri" in request` | Aucune URI enregistrée → OAuth2 → Redirects |
 | `Redirect URI cannot be used in the RPC OAuth2 Authorization flow` | L'URI est envoyée dans la requête : elle doit seulement être enregistrée |
-| `Echange de token refusé (HTTP 400)` | `client_id` / `client_secret` erronés |
+| `RPC is not approved` | Le scope `rpc` est restreint par Discord → onglet *App Testers* |
 | Une commande reste bloquée sans rien afficher | Quota de 2 connexions/minute : attends une minute entre deux commandes |
 | Rien ne se met à jour dans `watch` | Vérifie que tu es bien connecté à un salon vocal |
 

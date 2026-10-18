@@ -6,11 +6,11 @@
  */
 
 import path from "node:path";
+import { log } from "./log.ts";
 
 export interface Config {
+  /** Identifiant public de l'application Discord. Aucun secret n'est necessaire. */
   clientId: string;
-  /** Obligatoire : le flux OAuth2 du RPC Discord refuse les clients publics. */
-  clientSecret: string;
   scopes: string[];
   /** Dossier des donnees locales (tokens, cache d'avatars), ignore par git. */
   dataDir: string;
@@ -26,7 +26,7 @@ const ENV_HELP = [
   "",
   "  1. Copie le modele :   copy .env.example .env",
   "  2. Cree une application sur https://discord.com/developers/applications",
-  "  3. Renseigne DISCORD_CLIENT_ID et DISCORD_CLIENT_SECRET",
+  "  3. Renseigne DISCORD_CLIENT_ID",
   "",
 ].join("\n");
 
@@ -34,14 +34,6 @@ export function loadConfig(): Config {
   const clientId = process.env["DISCORD_CLIENT_ID"]?.trim() ?? "";
   if (clientId === "") {
     throw new Error(`${ENV_HELP}Aucune valeur trouvee pour DISCORD_CLIENT_ID.`);
-  }
-
-  const clientSecret = process.env["DISCORD_CLIENT_SECRET"]?.trim() ?? "";
-  if (clientSecret === "") {
-    throw new Error(
-      `${ENV_HELP}Aucune valeur trouvee pour DISCORD_CLIENT_SECRET.\n` +
-        "Il est obligatoire : le flux OAuth2 du RPC Discord refuse les clients publics (PKCE).",
-    );
   }
 
   const scopes = (process.env["DISCORD_SCOPES"]?.trim() || "rpc")
@@ -54,8 +46,22 @@ export function loadConfig(): Config {
 
   return {
     clientId,
-    clientSecret,
     scopes,
     dataDir: DATA_DIR,
   };
+}
+
+/**
+ * Verifie que les prerequis cote portail developpeur sont en place.
+ *
+ * Un avertissement suffit : le diagnostic precis viendra de Discord, et les
+ * messages d'erreur d'auth.ts expliquent alors quoi corriger.
+ */
+export function warnAboutPortalSetup(): void {
+  if ((process.env["DISCORD_CLIENT_SECRET"] ?? "").trim() !== "") {
+    log.warn(
+      "DISCORD_CLIENT_SECRET est renseigne mais n'est plus utilise : le flux PKCE",
+    );
+    log.warn("n'embarque aucun secret. Tu peux retirer cette ligne du .env.");
+  }
 }

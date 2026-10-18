@@ -16,9 +16,9 @@ import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { AvatarStore, decodeDataUrl } from "./avatars.ts";
-import { authenticate, ensureAuthenticated } from "./auth.ts";
+import { ensureAuthenticated } from "./auth.ts";
 import type { AuthOptions } from "./auth.ts";
-import { AUTH_FILE, AVATAR_DIR, OUT_DIR, loadConfig } from "./config.ts";
+import { AUTH_FILE, AVATAR_DIR, OUT_DIR, loadConfig, warnAboutPortalSetup } from "./config.ts";
 import type { Config } from "./config.ts";
 import { FakeAvatarStore, fakeParticipants } from "./fake.ts";
 import { DiscordIpc } from "./ipc.ts";
@@ -40,7 +40,6 @@ const FALLBACK_CLIENT_ID = "367827983903490050";
 function authOptions(config: Config): AuthOptions {
   return {
     clientId: config.clientId,
-    clientSecret: config.clientSecret,
     scopes: config.scopes,
   };
 }
@@ -264,22 +263,14 @@ async function commandSmoke(): Promise<void> {
 
 async function commandAuth(): Promise<void> {
   const config = loadConfig();
+  warnAboutPortalSetup();
   const ipc = await connect(config);
 
   try {
+    // `ensureAuthenticated` gere tout : reutilisation du token stocke,
+    // rafraichissement, ou consentement si necessaire.
     const tokens = await ensureAuthenticated(ipc, AUTH_FILE, authOptions(config));
-
-    // `ensureAuthenticated` peut avoir reutilise un token existant, auquel cas
-    // la connexion vient d'etre authentifiee : on interroge les scopes actifs.
-    let scopes = tokens.scope;
-    try {
-      scopes = await authenticate(ipc, tokens.access_token);
-    } catch (error) {
-      // "Already authenticated" est le cas normal juste apres AUTHORIZE.
-      if (!(error as Error).message.includes("Already authenticated")) throw error;
-    }
-
-    log.ok(`Autorise. Scopes actifs : ${scopes}`);
+    log.ok(`Autorise. Scopes : ${tokens.scope}`);
     log.info(`Token valable jusqu'au ${new Date(tokens.expires_at).toLocaleString()}`);
   } finally {
     ipc.close();
