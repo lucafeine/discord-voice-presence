@@ -31,21 +31,18 @@ const LEFT_ALIGNED_MAX = 2;
 const ALERT_DURATION_MS: Record<VoiceAlert["kind"], number> = {
 	joined: 3500,
 	left: 3500,
-	mute: 3000,
-	deafen: 3000,
 	channel: 3000
 };
 
-/** Periode du clignotement rouge, en millisecondes. */
-const BLINK_MS = 220;
-
 /**
- * Alertes a faire clignoter.
+ * Rappel d'une coupure : un voile de 1 s, toutes les 5 s, tant que ca dure.
  *
- * Une coupure de micro ou de casque est un etat a signaler avec insistance ;
- * une arrivee ou un depart se lit tres bien sans clignotement.
+ * Le voile est semi-transparent et passe au-dessus de la rangee : il rappelle la
+ * coupure sans jamais cacher les avatars. Deux mises a jour par cycle, tres loin
+ * de la limite de 10 par seconde des guidelines.
  */
-const BLINKING: ReadonlySet<VoiceAlert["kind"]> = new Set(["mute", "deafen"]);
+const FLASH_ON_MS = 1_000;
+const FLASH_CYCLE_MS = 5_000;
 
 /** Au-dela, on jette : mieux vaut rater une annonce que rester en retard. */
 const MAX_QUEUE = 4;
@@ -58,14 +55,22 @@ interface InfobarTarget {
 
 type ItemState = Pixmap | string;
 
+/** Coupure la plus severe presente dans le salon. */
+type CutKind = "mute" | "deafen";
+
 /** Etat de la file d'alertes d'une action. */
 interface AlertSlot {
 	queue: VoiceAlert[];
 	current: VoiceAlert | null;
 	timer: NodeJS.Timeout | null;
-	blinkTimer: NodeJS.Timeout | null;
-	/** Phase courante du clignotement : vrai = aplat visible. */
-	blinkOn: boolean;
+}
+
+/** Etat du voile de rappel d'une action. */
+interface FlashSlot {
+	/** Vrai pendant la seconde ou le voile est visible. */
+	on: boolean;
+	onTimer: NodeJS.Timeout | null;
+	cycleTimer: NodeJS.Timeout | null;
 }
 
 /**
@@ -74,9 +79,9 @@ interface AlertSlot {
  * Les avatars sont des images carrees decoupees en cercle par un cadre superpose
  * (voir tools/generate-infobar.mjs) : aucun pixel n'est manipule ici.
  *
- * Les alertes sont une surcouche du MEME layout, pas un second layout : changer
- * de layout a chaque evenement demanderait un aller-retour et ferait clignoter
- * l'affichage.
+ * Les annonces d'arrivee et de depart sont une surcouche du MEME layout, pas un
+ * second layout : changer de layout a chaque evenement demanderait un
+ * aller-retour et ferait clignoter l'affichage.
  */
 @action({ UUID: "com.lucas.discord-voice-presence.infobar" })
 export class VoicePresenceInfobar extends SingletonAction {
@@ -91,6 +96,7 @@ export class VoicePresenceInfobar extends SingletonAction {
 	private readonly lastState = new Map<string, VoicePresenceState>();
 
 	private readonly alerts = new Map<string, AlertSlot>();
+	private readonly flashes = new Map<string, FlashSlot>();
 
 	override async onWillAppear(ev: WillAppearEvent): Promise<void> {
 		if (!ev.action.isNeoInfobar()) {
@@ -133,12 +139,12 @@ export class VoicePresenceInfobar extends SingletonAction {
 		this.alertSubscriptions.get(id)?.();
 		this.alertSubscriptions.delete(id);
 
-		const slot = this.alerts.get(id);
-		if (slot !== undefined) {
-			if (slot.timer !== null) clearTimeout(slot.timer);
-			if (slot.blinkTimer !== null) clearInterval(slot.blinkTimer);
-			this.alerts.delete(id);
-		}
+		const alert = this.alerts.get(id);
+		if (alert?.timer != null) clearTimeout(alert.timer);
+		this.alerts.delete(id);
+
+		this.#stopFlash(id);
+		this.flashes.delete(id);
 
 		this.lastSent.delete(id);
 		this.lastState.delete(id);
@@ -150,13 +156,7 @@ export class VoicePresenceInfobar extends SingletonAction {
 		const existing = this.alerts.get(id);
 		if (existing !== undefined) return existing;
 
-		const created: AlertSlot = {
-			queue: [],
-			current: null,
-			timer: null,
-			blinkTimer: null,
-			blinkOn: true
-		};
+		const created: AlertSlot = { queue: [], current: null, timer: null };
 		this.alerts.set(id, created);
 		return created;
 	}
@@ -186,37 +186,79 @@ export class VoicePresenceInfobar extends SingletonAction {
 		}
 
 		slot.current = next;
-		slot.blinkOn = true;
 
 		if (slot.timer !== null) clearTimeout(slot.timer);
 		slot.timer = setTimeout(() => {
 			slot.timer = null;
 			slot.current = null;
-			this.#stopBlinking(slot);
 			this.#advance(infobar);
 		}, ALERT_DURATION_MS[next.kind]);
-
-		if (BLINKING.has(next.kind)) {
-			this.#startBlinking(infobar, slot);
-		}
 
 		void this.#render(infobar);
 	}
 
-	#startBlinking(infobar: InfobarTarget, slot: AlertSlot): void {
-		this.#stopBlinking(slot);
+	// --- Voile de rappel des coupures ----------------------------------------
 
-		slot.blinkTimer = setInterval(() => {
-			slot.blinkOn = !slot.blinkOn;
-			void this.#render(infobar);
-		}, BLINK_MS);
+	/**
+	 * Coupure la plus severe du salon, ou `null`.
+	 *
+	 * Deduit du roster et non d'un evenement : l'etat est ainsi juste des la
+	 * connexion, meme si quelqu'un etait deja coupe avant.
+	 */
+	#cutKind(participants: readonly Participant[]): CutKind | null {
+		let muted = false;
+
+		for (const participant of participants) {
+			if (participant.selfDeaf || participant.serverDeaf) return "deafen";
+			if (participant.selfMute || participant.serverMute || participant.suppressed) muted = true;
+		}
+
+		return muted ? "mute" : null;
 	}
 
-	#stopBlinking(slot: AlertSlot): void {
-		if (slot.blinkTimer === null) return;
-		clearInterval(slot.blinkTimer);
-		slot.blinkTimer = null;
-		slot.blinkOn = true;
+	/** Demarre le cycle si besoin. Sans effet s'il tourne deja. */
+	#ensureFlashing(infobar: InfobarTarget, id: string): void {
+		const slot = this.#flashFor(id);
+		if (slot.cycleTimer !== null) return;
+
+		// Le cycle est arme avant la premiere impulsion : sinon l'impulsion
+		// redemanderait un demarrage et on empilerait les minuteries.
+		slot.cycleTimer = setInterval(() => this.#pulse(infobar, id), FLASH_CYCLE_MS);
+		this.#pulse(infobar, id);
+	}
+
+	/** Une impulsion : voile visible une seconde, puis eteint. */
+	#pulse(infobar: InfobarTarget, id: string): void {
+		const slot = this.#flashFor(id);
+		slot.on = true;
+		void this.#render(infobar);
+
+		if (slot.onTimer !== null) clearTimeout(slot.onTimer);
+		slot.onTimer = setTimeout(() => {
+			slot.onTimer = null;
+			slot.on = false;
+			void this.#render(infobar);
+		}, FLASH_ON_MS);
+	}
+
+	#stopFlash(id: string): void {
+		const slot = this.flashes.get(id);
+		if (slot === undefined) return;
+
+		if (slot.onTimer !== null) clearTimeout(slot.onTimer);
+		if (slot.cycleTimer !== null) clearInterval(slot.cycleTimer);
+		slot.onTimer = null;
+		slot.cycleTimer = null;
+		slot.on = false;
+	}
+
+	#flashFor(id: string): FlashSlot {
+		const existing = this.flashes.get(id);
+		if (existing !== undefined) return existing;
+
+		const created: FlashSlot = { on: false, onTimer: null, cycleTimer: null };
+		this.flashes.set(id, created);
+		return created;
 	}
 
 	// --- Rendu ---------------------------------------------------------------
@@ -226,7 +268,7 @@ export class VoicePresenceInfobar extends SingletonAction {
 		const state = this.lastState.get(infobar.id);
 		if (state === undefined) return;
 
-		const payload = await this.#buildPayload(infobar.id, state);
+		const payload = await this.#buildPayload(infobar, state);
 
 		const previous = this.lastSent.get(infobar.id) ?? {};
 		const delta: FeedbackPayload = {};
@@ -250,7 +292,10 @@ export class VoicePresenceInfobar extends SingletonAction {
 		}
 	}
 
-	async #buildPayload(id: string, state: VoicePresenceState): Promise<Record<string, ItemState>> {
+	async #buildPayload(
+		infobar: InfobarTarget,
+		state: VoicePresenceState
+	): Promise<Record<string, ItemState>> {
 		const payload: Record<string, ItemState> = {};
 
 		// Tous les emplacements sont toujours decrits : sinon un avatar reste
@@ -286,20 +331,43 @@ export class VoicePresenceInfobar extends SingletonAction {
 			}
 		}
 
-		await this.#applyAlert(payload, id, state, showAvatars);
+		await this.#applyAlert(payload, infobar.id, state, showAvatars);
+		this.#applyFlash(payload, infobar, participants);
 
 		return payload;
 	}
 
-	/** Ajoute la surcouche d'alerte, ou la masque et remet le texte d'etat. */
+	/** Ajoute le voile de rappel, ou l'eteint et arrete le cycle. */
+	#applyFlash(
+		payload: Record<string, ItemState>,
+		infobar: InfobarTarget,
+		participants: readonly Participant[]
+	): void {
+		const kind = this.#cutKind(participants);
+
+		if (kind === null) {
+			this.#stopFlash(infobar.id);
+			payload["flash"] = { value: "", opacity: 0 };
+			return;
+		}
+
+		this.#ensureFlashing(infobar, infobar.id);
+		const visible = this.#flashFor(infobar.id).on;
+
+		payload["flash"] = {
+			value: `imgs/infobar/flash-${kind}.svg`,
+			opacity: visible ? 1 : 0
+		};
+	}
+
+	/** Ajoute la surcouche d'annonce, ou la masque et remet le texte d'etat. */
 	async #applyAlert(
 		payload: Record<string, ItemState>,
 		id: string,
 		state: VoicePresenceState,
 		showAvatars: boolean
 	): Promise<void> {
-		const slot = this.alerts.get(id);
-		const alert = slot?.current ?? null;
+		const alert = this.alerts.get(id)?.current ?? null;
 
 		if (alert === null) {
 			payload["alertBg"] = { value: "", opacity: 0 };
@@ -310,25 +378,18 @@ export class VoicePresenceInfobar extends SingletonAction {
 			payload["alertDetail"] = "";
 
 			// Le texte centre sert aux etats sans avatars.
-			if (!showAvatars) {
-				payload["status"] = this.#statusLine(state);
-				payload["detail"] = this.#detailLine(state);
-			} else {
+			if (showAvatars) {
 				payload["status"] = "";
 				payload["detail"] = "";
+			} else {
+				payload["status"] = this.#statusLine(state);
+				payload["detail"] = this.#detailLine(state);
 			}
 			return;
 		}
 
-		const blinkVisible = slot?.blinkOn ?? true;
-
 		payload["alertBg"] = { value: "imgs/infobar/alert-bg.svg", opacity: 1 };
-		payload["alertAccent"] = {
-			value: `imgs/infobar/accent-${alert.kind}.svg`,
-			// Le clignotement ne touche que l'aplat : le fond reste en place, donc
-			// l'avatar et le texte ne sautent pas.
-			opacity: BLINKING.has(alert.kind) && !blinkVisible ? 0 : 1
-		};
+		payload["alertAccent"] = { value: `imgs/infobar/accent-${alert.kind}.svg`, opacity: 1 };
 
 		if (alert.kind === "channel") {
 			// Pas d'avatar : le texte centre suffit, et evite un trou a gauche.
@@ -383,12 +444,10 @@ export class VoicePresenceInfobar extends SingletonAction {
 	}
 }
 
-/** Libelle affiche sous le nom, par type d'alerte. */
+/** Libelle affiche sous le nom, par type d'annonce. */
 const ALERT_DETAIL: Record<Exclude<VoiceAlert["kind"], "channel">, string> = {
 	joined: "a rejoint le vocal",
-	left: "a quitte le vocal",
-	mute: "micro coupe",
-	deafen: "casque coupe"
+	left: "a quitte le vocal"
 };
 
 /**

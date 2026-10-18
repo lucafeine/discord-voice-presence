@@ -301,6 +301,19 @@
 			"zOrder": 14
 		},
 		{
+			"key": "flash",
+			"type": "pixmap",
+			"rect": [
+				0,
+				0,
+				232,
+				50
+			],
+			"value": "",
+			"opacity": 0,
+			"zOrder": 16
+		},
+		{
 			"key": "status",
 			"type": "text",
 			"rect": [

@@ -119,7 +119,7 @@ async function composeAlert(layers, alert) {
 	});
 }
 
-async function compose({ count, speaking, badge, alert }) {
+async function compose({ count, speaking, badge, alert, flash }) {
 	const layers = [{ input: await toPng(read("card.svg"), WIDTH, HEIGHT), left: 0, top: 0 }];
 
 	for (let index = 0; index < count && index < SLOTS; index += 1) {
@@ -150,6 +150,11 @@ async function compose({ count, speaking, badge, alert }) {
 		await composeAlert(layers, alert);
 	}
 
+	// Voile de rappel : dessine par-dessus la rangee, sans la masquer.
+	if (flash) {
+		layers.push({ input: await toPng(read(`flash-${flash}.svg`), WIDTH, HEIGHT), left: 0, top: 0 });
+	}
+
 	return sharp({
 		create: {
 			width: WIDTH,
@@ -176,17 +181,11 @@ const cases = [
 		{ count: 3, alert: { kind: "left", name: "Rayan", title: "Rayan", detail: "a quitte le vocal" } }
 	],
 	[
-		"Alerte : micro coupe (phase visible)",
-		{ count: 3, alert: { kind: "mute", name: "Theo", title: "Theo", detail: "micro coupe" } }
-	],
-	[
-		"Alerte : casque coupe",
-		{ count: 3, alert: { kind: "deafen", name: "Ines", title: "Ines", detail: "casque coupe" } }
-	],
-	[
 		"Alerte : salon rejoint (sans avatar)",
 		{ count: 0, alert: { kind: "channel", title: "Le cocon des copaings", detail: "『🦜』Parlote" } }
-	]
+	],
+	["Rappel : voile micro coupe (phase visible)", { count: 3, speaking: 1, flash: "mute" }],
+	["Rappel : voile casque coupe (phase visible)", { count: 5, badge: "deaf", flash: "deafen" }]
 ];
 
 fs.mkdirSync(outDir, { recursive: true });

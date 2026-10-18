@@ -47,14 +47,13 @@ const INITIAL: VoicePresenceState = {
 /**
  * Evenement transitoire a annoncer quelques secondes.
  *
- * `mute` et `deafen` ne sont emis que dans le sens de la coupure : un retour a
- * la normale n'a rien d'alarmant et n'a pas a faire clignoter l'Infobar.
+ * Les coupures de micro et de casque n'en font pas partie : elles ne sont pas
+ * annoncees une fois mais rappelees en continu tant qu'elles durent, et l'action
+ * deduit cet etat du roster plutot que d'un evenement.
  */
 export type VoiceAlert =
 	| { kind: "joined"; participant: Participant }
 	| { kind: "left"; participant: Participant }
-	| { kind: "mute"; participant: Participant }
-	| { kind: "deafen"; participant: Participant }
 	| { kind: "channel"; channel: string; guild: string | null };
 
 type Listener = (state: VoicePresenceState) => void;
@@ -65,9 +64,6 @@ export class VoicePresenceService {
 	readonly #listeners = new Set<Listener>();
 	readonly #alertListeners = new Set<AlertListener>();
 	readonly #store: TokenStore = new GlobalSettingsTokenStore();
-
-	/** Roster precedent, pour detecter les coupures de micro et de casque. */
-	#previous = new Map<string, Participant>();
 
 	#ipc: DiscordIpc | null = null;
 	#monitor: VoiceMonitor | null = null;
@@ -206,9 +202,6 @@ export class VoicePresenceService {
 		this.#ipc = null;
 		this.#monitor = null;
 		this.#avatars = null;
-		// Le prochain roster sera un premier roster : sans cela, une reconnexion
-		// ferait croire a des coupures de micro chez tout le monde.
-		this.#previous = new Map();
 	}
 
 	#stop(): void {
@@ -251,8 +244,6 @@ export class VoicePresenceService {
 	}
 
 	#onRoster(participants: Participant[], channel: RpcChannel | null): void {
-		this.#detectVoiceChanges(participants);
-
 		this.#publish({
 			...this.#state,
 			status: "ready",
@@ -260,39 +251,6 @@ export class VoicePresenceService {
 			channel: channel?.name ?? null,
 			participants
 		});
-	}
-
-	/**
-	 * Annonce les coupures de micro et de casque.
-	 *
-	 * Un `VOICE_STATE_UPDATE` ne dit pas ce qui a change : on compare donc avec le
-	 * roster precedent. Le tout premier roster est ignore, sinon tout le monde
-	 * serait annonce comme fraichement coupe a la connexion.
-	 */
-	#detectVoiceChanges(participants: readonly Participant[]): void {
-		const wasFirstRoster = this.#previous.size === 0;
-		const previous = this.#previous;
-		this.#previous = new Map(participants.map((participant) => [participant.id, participant]));
-
-		if (wasFirstRoster) return;
-
-		for (const participant of participants) {
-			const before = previous.get(participant.id);
-			if (before === undefined) continue;
-
-			const deafenedBefore = before.selfDeaf || before.serverDeaf;
-			const deafenedNow = participant.selfDeaf || participant.serverDeaf;
-			if (deafenedNow && !deafenedBefore) {
-				this.#emitAlert({ kind: "deafen", participant });
-				continue;
-			}
-
-			const mutedBefore = before.selfMute || before.serverMute || before.suppressed;
-			const mutedNow = participant.selfMute || participant.serverMute || participant.suppressed;
-			if (mutedNow && !mutedBefore) {
-				this.#emitAlert({ kind: "mute", participant });
-			}
-		}
 	}
 
 	#emitAlert(alert: VoiceAlert): void {

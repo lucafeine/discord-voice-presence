@@ -99,7 +99,9 @@ const Z = {
 	alertAvatar: 12,
 	alertFrame: 13,
 	alertText: 14,
-	status: 15
+	status: 15,
+	/** Voile de rappel, au-dessus de tout : il teinte la rangee sans la cacher. */
+	flash: 16
 };
 
 // --- Assets ------------------------------------------------------------------
@@ -194,6 +196,20 @@ const ACCENTS = {
 	deafen: "#f0b232",
 	channel: "#1e1f22"
 };
+
+/**
+ * Voile de rappel d'une coupure.
+ *
+ * Semi-transparent par construction : il passe au-dessus de la rangee pour
+ * signaler une coupure, sans jamais la masquer. C'est l'opacite de l'item qui
+ * l'allume et l'eteint, donc l'alpha doit rester dans l'asset.
+ */
+function flashSvg(color) {
+	return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}">
+  <rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="10" fill="${color}" fill-opacity="0.55"/>
+</svg>
+`;
+}
 
 /**
  * Badge d'etat.
@@ -331,6 +347,17 @@ function layout() {
 		zOrder: Z.alertText
 	});
 
+	// Voile de rappel d'une coupure, au-dessus de tout. Allume par intermittence
+	// tant qu'une personne est coupee, sans jamais masquer la rangee.
+	items.push({
+		key: "flash",
+		type: "pixmap",
+		rect: [0, 0, WIDTH, HEIGHT],
+		value: "",
+		opacity: 0,
+		zOrder: Z.flash
+	});
+
 	// Texte centre, au-dessus de la surcouche : il sert aux etats sans avatars
 	// (hors vocal, erreur, connexion) et a l'annonce d'un changement de salon,
 	// qui n'a pas d'avatar a montrer.
@@ -381,6 +408,11 @@ for (const [kind, color] of Object.entries(ACCENTS)) {
 	// Cadre assorti a l'aplat : sans lui, la couverture des coins de l'avatar
 	// resterait de la couleur de la carte et dessinerait un carre sur l'alerte.
 	fs.writeFileSync(path.join(assetsDir, `frame-${kind}.svg`), frameSvg(color));
+}
+
+// Voiles de rappel, uniquement pour les coupures.
+for (const kind of ["mute", "deafen"]) {
+	fs.writeFileSync(path.join(assetsDir, `flash-${kind}.svg`), flashSvg(ACCENTS[kind]));
 }
 fs.writeFileSync(path.join(assetsDir, "badge-mute.svg"), badgeSvg("mute"));
 fs.writeFileSync(path.join(assetsDir, "badge-deaf.svg"), badgeSvg("deaf"));
