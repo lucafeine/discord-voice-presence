@@ -15,8 +15,10 @@ out/
 npm-debug.log*
 
 # Sortie de build du plugin Stream Deck
-*.sdPlugin/bin/
-*.sdPlugin/logs/
+# `**/` est necessaire : un motif contenant un `/` est ancre a la racine du
+# depot, donc `*.sdPlugin/bin/` ne matcherait pas un plugin dans un sous-dossier.
+**/*.sdPlugin/bin/
+**/*.sdPlugin/logs/
 *.streamDeckPlugin
 
 # Divers
