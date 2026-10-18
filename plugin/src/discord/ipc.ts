@@ -206,6 +206,16 @@ export class DiscordIpc extends EventEmitter<DiscordIpcEvents> {
     await new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.#readySettle = null;
+
+        // Sans cette fermeture, le socket reste ouvert : il continuerait de
+        // compter dans le quota de connexions de Discord (2 par minute), et
+        // chaque tentative ratee rendrait la suivante plus difficile. Les
+        // ecouteurs sont retires avant, pour ne pas declencher l'evenement
+        // "close" et republier une fermeture.
+        socket.removeAllListeners();
+        socket.destroy();
+        this.#socket = null;
+
         reject(new Error(`Pas de reponse READY apres ${HANDSHAKE_TIMEOUT_MS} ms.`));
       }, HANDSHAKE_TIMEOUT_MS);
       timer.unref();

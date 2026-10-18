@@ -20,8 +20,17 @@ import { GlobalSettingsTokenStore } from "../discord/settings.js";
 import type { Participant, RpcChannel } from "../discord/types.js";
 import { VoiceMonitor } from "../discord/voice.js";
 
-/** Delai avant nouvelle tentative quand Discord est injoignable. */
-const RECONNECT_DELAY_MS = 15_000;
+/** Delais entre deux tentatives, du plus court au plus long. */
+const RECONNECT_DELAYS_MS = [15_000, 30_000, 60_000, 120_000];
+
+/**
+ * Delai avant de fermer la connexion quand plus aucune action n'est abonnee.
+ *
+ * Stream Deck redemande `willAppear` lors d'un changement de profil ou d'une
+ * modification de l'action. Fermer la connexion a chaque fois provoquerait une
+ * rafale de reconnexions, et Discord n'en accepte que deux par minute.
+ */
+const STOP_GRACE_MS = 3_000;
 
 export type VoicePresenceStatus = "connecting" | "ready" | "error";
 
@@ -62,6 +71,17 @@ export type VoiceAlert =
 type Listener = (state: VoicePresenceState) => void;
 type AlertListener = (alert: VoiceAlert) => void;
 
+/**
+ * Rend un echec de connexion comprehensible pour l'utilisateur.
+ *
+ * Le detail technique reste dans le journal : l'Infobar n'a que deux lignes.
+ */
+function explain(message: string): string {
+  if (message.includes("pipe Discord joignable")) return "Lance le client Discord";
+  if (message.includes("READY")) return "Discord ne repond pas, nouvel essai automatique";
+  return message;
+}
+
 export class VoicePresenceService {
 	#state: VoicePresenceState = INITIAL;
 	readonly #listeners = new Set<Listener>();
@@ -77,6 +97,8 @@ export class VoicePresenceService {
 	#stopped = false;
 	#authorizing = false;
 	#retryTimer: NodeJS.Timeout | null = null;
+	#stopTimer: NodeJS.Timeout | null = null;
+	#reconnectAttempts = 0;
 
 	/** Cache d'avatars, disponible une fois la connexion etablie. */
 	get avatars(): AvatarCache | null {
@@ -90,6 +112,15 @@ export class VoicePresenceService {
 	/** S'abonne aux changements d'etat ; renvoie la fonction de desabonnement. */
 	subscribe(listener: Listener): () => void {
 		this.#listeners.add(listener);
+
+		// Une nouvelle arrivee annule l'extinction programmee : sinon un simple
+		// willAppear redemande par Stream Deck couperait puis rouvrirait la
+		// connexion Discord.
+		if (this.#stopTimer !== null) {
+			clearTimeout(this.#stopTimer);
+			this.#stopTimer = null;
+		}
+
 		listener(this.#state);
 
 		if (this.#listeners.size === 1) {
@@ -99,9 +130,20 @@ export class VoicePresenceService {
 		return () => {
 			this.#listeners.delete(listener);
 			if (this.#listeners.size === 0) {
-				this.#stop();
+				this.#scheduleStop();
 			}
 		};
+	}
+
+	/** Ferme la connexion si personne ne se reabonne entre-temps. */
+	#scheduleStop(): void {
+		if (this.#stopTimer !== null) return;
+
+		this.#stopTimer = setTimeout(() => {
+			this.#stopTimer = null;
+			if (this.#listeners.size === 0) this.#stop();
+		}, STOP_GRACE_MS);
+		this.#stopTimer.unref();
 	}
 
 	/** S'abonne aux evenements transitoires (arrivees, departs, coupures). */
@@ -187,10 +229,11 @@ export class VoicePresenceService {
 
 			await monitor.start();
 			this.#monitor = monitor;
+			this.#reconnectAttempts = 0;
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			log.error(`Connexion a Discord impossible : ${message}`);
-			this.#publish({ ...this.#state, status: "error", message });
+			this.#publish({ ...this.#state, status: "error", message: explain(message) });
 			this.#scheduleReconnect();
 		} finally {
 			this.#starting = false;
@@ -212,6 +255,13 @@ export class VoicePresenceService {
 
 	#stop(): void {
 		this.#stopped = true;
+
+		if (this.#stopTimer !== null) {
+			clearTimeout(this.#stopTimer);
+			this.#stopTimer = null;
+		}
+
+		this.#reconnectAttempts = 0;
 		this.#teardown();
 		this.#state = INITIAL;
 	}
@@ -223,10 +273,18 @@ export class VoicePresenceService {
 		this.#monitor = null;
 		this.#avatars = null;
 
+		// Delai croissant : Discord n'accepte que deux connexions par minute, donc
+		// reessayer trop vite entretient l'echec au lieu de le resoudre.
+		const index = Math.min(this.#reconnectAttempts, RECONNECT_DELAYS_MS.length - 1);
+		const delay = RECONNECT_DELAYS_MS[index] ?? 120_000;
+		this.#reconnectAttempts += 1;
+
+		log.warn(`Nouvel essai dans ${Math.round(delay / 1000)} s.`);
+
 		this.#retryTimer = setTimeout(() => {
 			this.#retryTimer = null;
 			if (this.#listeners.size > 0) void this.#start();
-		}, RECONNECT_DELAY_MS);
+		}, delay);
 		this.#retryTimer.unref();
 	}
 
