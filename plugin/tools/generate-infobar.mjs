@@ -65,7 +65,7 @@ const AVATAR_Y = FRAME_Y + INSET;
 const AVATAR_RADIUS = AVATAR / 2;
 const CIRCLE_RADIUS = CIRCLE / 2;
 
-const CARD_COLOR = "#1e1f22";
+const CARD_COLOR = "#000000";
 const CARD_BORDER = "#2b2d31";
 const SPEAKING_COLOR = "#23a55a";
 
