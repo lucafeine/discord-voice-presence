@@ -160,6 +160,7 @@ client local ; le CDN n'est qu'un secours.
 | `Missing "redirect_uri" in request` | Enregistre `https://127.0.0.1` dans OAuth2 → Redirects |
 | `Redirect URI cannot be used in the RPC OAuth2 Authorization flow` | L'URI est envoyée dans la requête : elle doit seulement être enregistrée |
 | `Echange de token refusé (HTTP 400)` | `client_id` / `client_secret` erronés |
+| Une commande reste bloquée sans rien afficher | Quota de 2 connexions/minute : attends une minute entre deux commandes |
 | Rien ne se met à jour dans `watch` | Vérifie que tu es bien connecté à un salon vocal |
 
 Le token est stocké dans `.data/auth.json` (ignoré par git). Le supprimer force

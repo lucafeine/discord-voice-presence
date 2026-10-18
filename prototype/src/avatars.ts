@@ -20,6 +20,9 @@ import { avatarUrl } from "./voice.ts";
 
 const DEFAULT_SIZE = 128;
 
+/** Delai maximal du repli CDN : le seul appel reseau du prototype. */
+const CDN_TIMEOUT_MS = 10_000;
+
 export class AvatarStore {
   readonly #ipc: DiscordIpc;
   readonly #dir: string;
@@ -69,24 +72,6 @@ export class AvatarStore {
     return buffer;
   }
 
-  /** Supprime les avatars en cache dont le hash n'est plus celui de l'utilisateur. */
-  prune(keepKeys: ReadonlySet<string>): number {
-    if (!fs.existsSync(this.#dir)) return 0;
-
-    let removed = 0;
-    for (const entry of fs.readdirSync(this.#dir)) {
-      if (!entry.endsWith(".png")) continue;
-      const key = entry.slice(0, -4);
-      // Une cle se termine par la taille : on ignore celle-ci pour le test.
-      const withoutSize = key.replace(/-\d+$/, "");
-      if (keepKeys.has(withoutSize)) continue;
-
-      fs.rmSync(path.join(this.#dir, entry), { force: true });
-      removed += 1;
-    }
-    return removed;
-  }
-
   // --- Sources ---------------------------------------------------------------
 
   async #fromRpc(userId: Snowflake, size: number): Promise<Buffer | null> {
@@ -112,7 +97,9 @@ export class AvatarStore {
   ): Promise<Buffer | null> {
     const url = avatarUrl({ id: userId, avatar: avatarHash }, size);
     try {
-      const response = await fetch(url);
+      // Sans delai maximal, un CDN injoignable bloquerait l'application
+      // indefiniment : c'est le seul appel reseau du prototype.
+      const response = await fetch(url, { signal: AbortSignal.timeout(CDN_TIMEOUT_MS) });
       if (!response.ok) {
         log.warn(`CDN a repondu ${response.status} pour ${userId}.`);
         return null;

@@ -271,6 +271,8 @@ export async function ensureAuthenticated(
   tokens = await authorize(ipc, options);
   saveTokens(authFile, tokens);
   log.ok(`Token stocke dans ${path.relative(process.cwd(), authFile)}`);
-  await authenticate(ipc, tokens.access_token);
+
+  // Pas d'appel a AUTHENTICATE ici : le flux AUTHORIZE authentifie deja la
+  // connexion en cours. Le rappeler renvoie RPC 4002 "Already authenticated".
   return tokens;
 }

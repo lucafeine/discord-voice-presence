@@ -110,69 +110,75 @@ async function buildContactSheet(
   const first = participants[0];
   const last = participants.at(-1);
 
-  entries.push({ label: "Aucun participant", png: await render.renderIdle() });
+  /** Enregistre l'etat et trace l'avancement : la composition prend un instant. */
+  const add = (label: string, png: Buffer): void => {
+    entries.push({ label, png });
+    log.info(`  etat ${String(entries.length).padStart(2, "0")} : ${label}`);
+  };
+
+  add("Aucun participant", await render.renderIdle());
 
   if (first !== undefined) {
-    entries.push({
-      label: "1 participant, en train de parler",
-      png: await render.renderVoice({
+    add(
+      "1 participant, en train de parler",
+      await render.renderVoice({
         participants: withSpeaking([first], 0),
         avatarSource: source,
         channelName,
       }),
-    });
+    );
   }
 
   if (participants.length >= 2) {
-    entries.push({
-      label: `${Math.min(participants.length, 2)} participants (nom + nom du salon)`,
-      png: await render.renderVoice({
+    add(
+      `${Math.min(participants.length, 2)} participants (nom + nom du salon)`,
+      await render.renderVoice({
         participants: participants.slice(0, 2),
         avatarSource: source,
         channelName,
       }),
-    });
+    );
   }
 
   const visible = participants.slice(0, render.MAX_VISIBLE);
   if (visible.length > 2) {
-    entries.push({
-      label: `${visible.length} participants, avec un locuteur et des badges`,
-      png: await render.renderVoice({
+    add(
+      `${visible.length} participants, avec un locuteur et des badges`,
+      await render.renderVoice({
         participants: withSpeaking(visible, 1),
         avatarSource: source,
         channelName,
       }),
-    });
+    );
   }
 
   if (participants.length > render.MAX_VISIBLE) {
     for (const offset of [0, Math.floor(participants.length / 2)]) {
-      entries.push({
-        label: `Carrousel, fenetre a l'offset ${offset} (sur ${participants.length})`,
-        png: await render.renderVoice({
+      add(
+        `Carrousel, fenetre a l'offset ${offset} (sur ${participants.length})`,
+        await render.renderVoice({
           participants: withSpeaking(participants, offset),
           avatarSource: source,
           mode: "paged",
           offset,
           channelName,
         }),
-      });
+      );
     }
   }
 
   if (first !== undefined) {
-    entries.push({
-      label: "Popup — arrivee",
-      png: await render.renderPopup({ participant: first, kind: "joined", avatarSource: source }),
-    });
+    add(
+      "Popup — arrivee",
+      await render.renderPopup({ participant: first, kind: "joined", avatarSource: source }),
+    );
   }
 
   if (last !== undefined) {
-    entries.push({
-      label: "Popup — depart",
-      png: await render.renderPopup({ participant: last, kind: "left", avatarSource: source }),
-    });
+    add(
+      "Popup — depart",
+      await render.renderPopup({ participant: last, kind: "left", avatarSource: source }),
+    );
   }
 
   return entries;
@@ -262,7 +268,17 @@ async function commandAuth(): Promise<void> {
 
   try {
     const tokens = await ensureAuthenticated(ipc, AUTH_FILE, authOptions(config));
-    const scopes = await authenticate(ipc, tokens.access_token);
+
+    // `ensureAuthenticated` peut avoir reutilise un token existant, auquel cas
+    // la connexion vient d'etre authentifiee : on interroge les scopes actifs.
+    let scopes = tokens.scope;
+    try {
+      scopes = await authenticate(ipc, tokens.access_token);
+    } catch (error) {
+      // "Already authenticated" est le cas normal juste apres AUTHORIZE.
+      if (!(error as Error).message.includes("Already authenticated")) throw error;
+    }
+
     log.ok(`Autorise. Scopes actifs : ${scopes}`);
     log.info(`Token valable jusqu'au ${new Date(tokens.expires_at).toLocaleString()}`);
   } finally {
@@ -379,6 +395,7 @@ async function commandPreview(args: Map<string, string>, flags: Set<string>): Pr
       await monitor.start();
 
       const store = new AvatarStore(ipc, AVATAR_DIR);
+      log.info("Lecture du salon vocal...");
       const guildName = await monitor.guildName(monitor.channel);
       const participants = monitor.participants;
 
