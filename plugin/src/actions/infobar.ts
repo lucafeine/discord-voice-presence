@@ -18,7 +18,7 @@ const LAYOUT = "layouts/voice-presence.json";
 const FRAME = "imgs/infobar/frame.svg";
 const FRAME_SPEAKING = "imgs/infobar/frame-speaking.svg";
 const BADGE_MUTE = "imgs/infobar/badge-mute.svg";
-const BADGE_DEAF = "imgs/infobar/badge-deaf.svg";
+const BADGE_DEAF = "imgs/infobar/badge-deafen.svg";
 const AVATAR_PLACEHOLDER = "imgs/infobar/avatar-placeholder.svg";
 
 /** Nombre d'emplacements definis dans le layout. */

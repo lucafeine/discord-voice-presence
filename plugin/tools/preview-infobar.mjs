@@ -78,8 +78,6 @@ const COLORS = ["#5865f2", "#eb459e", "#57f287", "#fee75c", "#ed4245"];
 const ACCENT_COLORS = {
 	joined: "#23a55a",
 	left: "#ed4245",
-	mute: "#ed4245",
-	deafen: "#f0b232",
 	channel: "#1e1f22"
 };
 
@@ -156,7 +154,6 @@ async function compose({ count, speaking, badge, alert, flash }) {
 			top: AVATAR_Y + AVATAR - BADGE + 1
 		});
 	}
-
 	if (alert) {
 		await composeAlert(layers, alert);
 	}
@@ -224,7 +221,7 @@ const cases = [
 		{ count: 0, alert: { kind: "channel", title: "Le cocon des copaings", detail: "『🦜』Parlote" } }
 	],
 	["Rappel : voile micro coupe (phase visible)", { count: 3, speaking: 1, flash: "mute" }],
-	["Rappel : voile casque coupe (phase visible)", { count: 5, badge: "deaf", flash: "deafen" }]
+	["Rappel : voile casque coupe (phase visible)", { count: 5, badge: "deafen", flash: "deafen" }]
 ];
 
 fs.mkdirSync(outDir, { recursive: true });

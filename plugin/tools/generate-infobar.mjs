@@ -208,13 +208,26 @@ function accentSvg(color) {
 `;
 }
 
-/** Couleurs des alertes. */
-const ACCENTS = {
+/**
+ * Couleurs des annonces d'arrivee, de depart et de changement de salon.
+ *
+ * Les coupures n'en font plus partie : elles ont leur propre voile.
+ */
+const ALERT_ACCENTS = {
 	joined: "#23a55a",
 	left: "#ed4245",
-	mute: "#ed4245",
-	deafen: "#f0b232",
 	channel: "#1e1f22"
+};
+
+/**
+ * Couleurs des coupures : rouges dans les deux cas.
+ *
+ * Le rouge est reserve a ce qui demande une reaction. Ce qui distingue le micro
+ * du casque, c'est le pictogramme et le texte, pas la couleur.
+ */
+const CUT_COLORS = {
+	mute: "#ed4245",
+	deafen: "#ed4245"
 };
 
 /**
@@ -255,14 +268,23 @@ function cutGlyph(kind) {
          <rect x="16.3" y="12.4" width="3.7" height="6.4" rx="1.7" fill="#fff"/>`;
 }
 
+/** Couleur d'une coupure, avec echec explicite si la cle n'existe pas. */
+function cutColor(kind) {
+	const color = CUT_COLORS[kind];
+	if (color === undefined) {
+		throw new Error(`Couleur de coupure inconnue : ${kind}`);
+	}
+	return color;
+}
+
 /**
- * Badge d'etat.
+ * Badge d'etat, en bas a droite de l'avatar.
  *
- * Priorite au casque : sur Discord, se couper le son coupe aussi le micro,
- * donc "casque" est l'information la plus utile.
+ * Rouge pour les deux coupures : c'est le pictogramme qui indique s'il s'agit du
+ * micro ou du casque. Le casque prime, car il coupe aussi le micro.
  */
 function badgeSvg(kind) {
-	const fill = kind === "mute" ? "#ed4245" : "#f0b232";
+	const fill = cutColor(kind);
 
 	return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
   <circle cx="12" cy="12" r="11.5" fill="${fill}" stroke="${CARD_COLOR}" stroke-width="1.5"/>
@@ -483,21 +505,38 @@ fs.writeFileSync(path.join(assetsDir, "frame-speaking.svg"), frameSvg(CARD_COLOR
 fs.writeFileSync(path.join(assetsDir, "avatar-placeholder.svg"), placeholderSvg());
 fs.writeFileSync(path.join(assetsDir, "alert-bg.svg"), alertBackgroundSvg());
 
-for (const [kind, color] of Object.entries(ACCENTS)) {
+for (const [kind, color] of Object.entries(ALERT_ACCENTS)) {
 	fs.writeFileSync(path.join(assetsDir, `accent-${kind}.svg`), accentSvg(color));
 	// Cadre assorti a l'aplat : sans lui, la couverture des coins de l'avatar
 	// resterait de la couleur de la carte et dessinerait un carre sur l'alerte.
 	fs.writeFileSync(path.join(assetsDir, `frame-${kind}.svg`), frameSvg(color));
 }
 
-// Voiles de rappel, uniquement pour les coupures.
+// Voiles et badges de coupure.
 fs.writeFileSync(path.join(assetsDir, "flash-bar.svg"), flashBarSvg());
-for (const kind of ["mute", "deafen"]) {
-	fs.writeFileSync(path.join(assetsDir, `flash-bg-${kind}.svg`), flashBackgroundSvg(ACCENTS[kind]));
+for (const [kind, color] of Object.entries(CUT_COLORS)) {
+	fs.writeFileSync(path.join(assetsDir, `flash-bg-${kind}.svg`), flashBackgroundSvg(color));
 	fs.writeFileSync(path.join(assetsDir, `flash-icon-${kind}.svg`), flashIconSvg(kind));
 }
+
+// Menage : les coupures ne produisent plus d'annonce, donc ces assets sont
+// devenus inutiles et induiraient en erreur en laissant croire le contraire.
+for (const stale of [
+	"accent-mute.svg",
+	"accent-deafen.svg",
+	"frame-mute.svg",
+	"frame-deafen.svg",
+	"mask.svg",
+	"ring.svg",
+	"flash-mute.svg",
+	"flash-deafen.svg",
+	"badge-deaf.svg"
+]) {
+	const file = path.join(assetsDir, stale);
+	if (fs.existsSync(file)) fs.rmSync(file);
+}
 fs.writeFileSync(path.join(assetsDir, "badge-mute.svg"), badgeSvg("mute"));
-fs.writeFileSync(path.join(assetsDir, "badge-deaf.svg"), badgeSvg("deaf"));
+fs.writeFileSync(path.join(assetsDir, "badge-deafen.svg"), badgeSvg("deafen"));
 
 const stale = path.join(assetsDir, "mask.svg");
 if (fs.existsSync(stale)) fs.rmSync(stale);
