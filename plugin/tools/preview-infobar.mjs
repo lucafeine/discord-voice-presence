@@ -39,6 +39,12 @@ const AVATAR_Y = FRAME_Y + INSET;
 const slotX = (index) => START_X + index * PITCH;
 const avatarX = (index) => slotX(index) + INSET;
 
+// Meme geometrie de surcouche que tools/generate-infobar.mjs
+const ALERT_FRAME_X = 10;
+const ALERT_FRAME_Y = FRAME_Y;
+const ALERT_AVATAR_X = ALERT_FRAME_X + INSET;
+const ALERT_TEXT_X = ALERT_FRAME_X + CIRCLE + 12;
+
 const read = (name) => fs.readFileSync(path.join(assets, name));
 
 /** Rend un SVG a une taille donnee. */
@@ -58,7 +64,62 @@ async function squareAvatar(label, color, size = 256) {
 
 const COLORS = ["#5865f2", "#eb459e", "#57f287", "#fee75c", "#ed4245"];
 
-async function compose({ count, speaking, badge }) {
+const ACCENT_COLORS = {
+	joined: "#23a55a",
+	left: "#ed4245",
+	mute: "#ed4245",
+	deafen: "#f0b232",
+	channel: "#1e1f22"
+};
+
+/** Rend une alerte : aplat de couleur, avatar eventuel, texte. */
+async function composeAlert(layers, alert) {
+	const accent = ACCENT_COLORS[alert.kind];
+
+	layers.push({ input: await toPng(read("alert-bg.svg"), WIDTH, HEIGHT), left: 0, top: 0 });
+	layers.push({
+		input: await sharp({
+			create: { width: WIDTH, height: HEIGHT, channels: 4, background: accent }
+		})
+			.png()
+			.toBuffer(),
+		left: 0,
+		top: 0
+	});
+
+	if (alert.name !== undefined) {
+		layers.push({
+			input: await squareAvatar(alert.name.slice(0, 1).toUpperCase(), COLORS[0]),
+			left: ALERT_AVATAR_X,
+			top: AVATAR_Y
+		});
+		layers.push({
+			input: await toPng(read(`frame-${alert.kind}.svg`), CIRCLE, CIRCLE),
+			left: ALERT_FRAME_X,
+			top: FRAME_Y
+		});
+	}
+
+	const texts =
+		alert.name === undefined
+			? `<text x="${WIDTH / 2}" y="17" font-family="Segoe UI, Arial, sans-serif" font-size="17"
+                 font-weight="600" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">${alert.title}</text>
+               <text x="${WIDTH / 2}" y="35" font-family="Segoe UI, Arial, sans-serif" font-size="12"
+                 fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">${alert.detail}</text>`
+			: `<text x="${ALERT_TEXT_X}" y="18" font-family="Segoe UI, Arial, sans-serif" font-size="16"
+                 font-weight="600" fill="#FFFFFF" dominant-baseline="central">${alert.title}</text>
+               <text x="${ALERT_TEXT_X}" y="36" font-family="Segoe UI, Arial, sans-serif" font-size="12"
+                 fill="#FFFFFF" dominant-baseline="central">${alert.detail}</text>`;
+	layers.push({
+		input: await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}">${texts}</svg>`))
+			.png()
+			.toBuffer(),
+		left: 0,
+		top: 0
+	});
+}
+
+async function compose({ count, speaking, badge, alert }) {
 	const layers = [{ input: await toPng(read("card.svg"), WIDTH, HEIGHT), left: 0, top: 0 }];
 
 	for (let index = 0; index < count && index < SLOTS; index += 1) {
@@ -70,13 +131,8 @@ async function compose({ count, speaking, badge }) {
 	}
 
 	for (let index = 0; index < count && index < SLOTS; index += 1) {
-		const speakingHere = index === speaking;
 		layers.push({
-			input: await toPng(
-				read(speakingHere ? "frame-speaking.svg" : "frame.svg"),
-				CIRCLE,
-				CIRCLE
-			),
+			input: await toPng(read(index === speaking ? "frame-speaking.svg" : "frame.svg"), CIRCLE, CIRCLE),
 			left: slotX(index),
 			top: FRAME_Y
 		});
@@ -88,6 +144,10 @@ async function compose({ count, speaking, badge }) {
 			left: avatarX(0) + AVATAR - BADGE + 1,
 			top: AVATAR_Y + AVATAR - BADGE + 1
 		});
+	}
+
+	if (alert) {
+		await composeAlert(layers, alert);
 	}
 
 	return sharp({
@@ -104,11 +164,29 @@ async function compose({ count, speaking, badge }) {
 }
 
 const cases = [
-	["1 participant", { count: 1 }],
-	["1 participant, en train de parler", { count: 1, speaking: 0 }],
-	["3 participants, le 2e parle", { count: 3, speaking: 1 }],
-	["5 participants, le 4e parle, badge micro", { count: 5, speaking: 3, badge: "mute" }],
-	["5 participants, badge casque", { count: 5, badge: "deaf" }]
+	["Rangee : 1 participant", { count: 1 }],
+	["Rangee : 3 participants, le 2e parle", { count: 3, speaking: 1 }],
+	["Rangee : 5 participants, le 4e parle, badge micro", { count: 5, speaking: 3, badge: "mute" }],
+	[
+		"Alerte : arrivee",
+		{ count: 3, alert: { kind: "joined", name: "Camille", title: "Camille", detail: "a rejoint le vocal" } }
+	],
+	[
+		"Alerte : depart",
+		{ count: 3, alert: { kind: "left", name: "Rayan", title: "Rayan", detail: "a quitte le vocal" } }
+	],
+	[
+		"Alerte : micro coupe (phase visible)",
+		{ count: 3, alert: { kind: "mute", name: "Theo", title: "Theo", detail: "micro coupe" } }
+	],
+	[
+		"Alerte : casque coupe",
+		{ count: 3, alert: { kind: "deafen", name: "Ines", title: "Ines", detail: "casque coupe" } }
+	],
+	[
+		"Alerte : salon rejoint (sans avatar)",
+		{ count: 0, alert: { kind: "channel", title: "Le cocon des copaings", detail: "『🦜』Parlote" } }
+	]
 ];
 
 fs.mkdirSync(outDir, { recursive: true });

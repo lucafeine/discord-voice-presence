@@ -73,6 +73,35 @@ const slotX = (index) => START_X + index * PITCH;
 const avatarX = (index) => slotX(index) + INSET;
 const frameX = (index) => slotX(index);
 
+// --- Surcouche d'alerte ------------------------------------------------------
+
+/**
+ * Positions de la surcouche, qui recouvre la rangee le temps de l'annonce.
+ *
+ * Un seul jeu d'items pour toutes les alertes : c'est la couleur de l'accent et
+ * le contenu du texte qui changent, pas la geometrie.
+ */
+const ALERT_FRAME_X = 10;
+const ALERT_FRAME_Y = FRAME_Y;
+const ALERT_AVATAR_X = ALERT_FRAME_X + INSET;
+const ALERT_AVATAR_Y = FRAME_Y + INSET;
+const ALERT_TEXT_X = ALERT_FRAME_X + CIRCLE + 12;
+const ALERT_TEXT_WIDTH = WIDTH - ALERT_TEXT_X - 10;
+
+/** Ordres de superposition de la surcouche, au-dessus de la rangee. */
+const Z = {
+	card: 0,
+	avatar: 1,
+	frame: 2,
+	badge: 3,
+	alertBg: 10,
+	alertAccent: 11,
+	alertAvatar: 12,
+	alertFrame: 13,
+	alertText: 14,
+	status: 15
+};
+
 // --- Assets ------------------------------------------------------------------
 
 function cardSvg() {
@@ -92,12 +121,16 @@ function disc(cx, cy, radius) {
  * Cadre pose sur l'avatar.
  *
  * Sans anneau : la couverture part du bord de l'avatar, donc tout le cadre est
- * de la couleur de la carte et seul le disque de l'avatar reste visible.
+ * de la couleur passee et seul le disque de l'avatar reste visible.
  *
  * Avec anneau : la couverture ne commence qu'au-dela de la bande de l'anneau,
  * ce qui laisse l'anneau vert apparent autour de l'avatar.
+ *
+ * La couleur de couverture doit correspondre a ce qui se trouve DERRIERE le
+ * cadre, sans quoi elle apparait comme un carre : celle de la carte dans la
+ * rangee, celle de l'aplat dans une alerte.
  */
-function frameSvg(speaking) {
+function frameSvg(coverColor, speaking = false) {
 	const centre = CIRCLE_RADIUS;
 	const coverRadius = speaking ? CIRCLE_RADIUS : AVATAR_RADIUS;
 
@@ -111,7 +144,7 @@ function frameSvg(speaking) {
 
 	// Carre plein, moins un disque : la couverture des coins.
 	parts.push(
-		`  <path d="M 0 0 H ${CIRCLE} V ${CIRCLE} H 0 Z ${disc(centre, centre, coverRadius)}" fill="${CARD_COLOR}" fill-rule="evenodd"/>`
+		`  <path d="M 0 0 H ${CIRCLE} V ${CIRCLE} H 0 Z ${disc(centre, centre, coverRadius)}" fill="${coverColor}" fill-rule="evenodd"/>`
 	);
 
 	return `<svg xmlns="http://www.w3.org/2000/svg" width="${CIRCLE}" height="${CIRCLE}">
@@ -130,6 +163,37 @@ function placeholderSvg() {
 </svg>
 `;
 }
+
+/** Carte opaque de la surcouche : elle doit masquer la rangee d'avatars. */
+function alertBackgroundSvg() {
+	return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}">
+  <rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="10"
+        fill="${CARD_COLOR}" stroke="${CARD_BORDER}"/>
+</svg>
+`;
+}
+
+/**
+ * Aplat de couleur de l'alerte.
+ *
+ * Pose sous l'avatar et le texte, il couvre toute la surface : c'est lui qui
+ * clignote pour signaler une coupure de micro ou de casque.
+ */
+function accentSvg(color) {
+	return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}">
+  <rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="10" fill="${color}"/>
+</svg>
+`;
+}
+
+/** Couleurs des alertes. */
+const ACCENTS = {
+	joined: "#23a55a",
+	left: "#ed4245",
+	mute: "#ed4245",
+	deafen: "#f0b232",
+	channel: "#1e1f22"
+};
 
 /**
  * Badge d'etat.
@@ -171,7 +235,7 @@ function layout() {
 			type: "pixmap",
 			rect: [0, 0, WIDTH, HEIGHT],
 			value: "imgs/infobar/card.svg",
-			zOrder: 0
+			zOrder: Z.card
 		}
 	];
 
@@ -182,7 +246,7 @@ function layout() {
 			rect: [avatarX(index), AVATAR_Y, AVATAR, AVATAR],
 			value: "",
 			opacity: 0,
-			zOrder: 1
+			zOrder: Z.avatar
 		});
 	}
 
@@ -193,7 +257,7 @@ function layout() {
 			rect: [frameX(index), FRAME_Y, CIRCLE, CIRCLE],
 			value: "imgs/infobar/frame.svg",
 			opacity: 0,
-			zOrder: 2
+			zOrder: Z.frame
 		});
 	}
 
@@ -204,12 +268,72 @@ function layout() {
 			rect: [avatarX(index) + AVATAR - BADGE + 1, AVATAR_Y + AVATAR - BADGE + 1, BADGE, BADGE],
 			value: "",
 			opacity: 0,
-			zOrder: 3
+			zOrder: Z.badge
 		});
 	}
 
-	// Texte : uniquement pour les etats sans avatars (hors vocal, erreur,
-	// connexion). Quand des avatars sont affiches, ils occupent toute la surface.
+	// Surcouche d'alerte : masquee par defaut, revelee quelques secondes lors
+	// d'une arrivee, d'un depart, d'une coupure de micro ou d'un changement de
+	// salon. Tous ces items sont decrits a chaque rendu, sinon une alerte
+	// resterait affichee apres sa fin.
+	items.push({
+		key: "alertBg",
+		type: "pixmap",
+		rect: [0, 0, WIDTH, HEIGHT],
+		value: "imgs/infobar/alert-bg.svg",
+		opacity: 0,
+		zOrder: Z.alertBg
+	});
+	items.push({
+		key: "alertAccent",
+		type: "pixmap",
+		rect: [0, 0, WIDTH, HEIGHT],
+		value: "",
+		opacity: 0,
+		zOrder: Z.alertAccent
+	});
+	items.push({
+		key: "alertAvatar",
+		type: "pixmap",
+		rect: [ALERT_AVATAR_X, ALERT_AVATAR_Y, AVATAR, AVATAR],
+		value: "",
+		opacity: 0,
+		zOrder: Z.alertAvatar
+	});
+	items.push({
+		key: "alertFrame",
+		type: "pixmap",
+		rect: [ALERT_FRAME_X, ALERT_FRAME_Y, CIRCLE, CIRCLE],
+		value: "imgs/infobar/frame.svg",
+		opacity: 0,
+		zOrder: Z.alertFrame
+	});
+	items.push({
+		key: "alertTitle",
+		type: "text",
+		rect: [ALERT_TEXT_X, 8, ALERT_TEXT_WIDTH, 20],
+		value: "",
+		font: { size: 16, weight: 600 },
+		alignment: "left",
+		color: "#FFFFFF",
+		"text-overflow": "ellipsis",
+		zOrder: Z.alertText
+	});
+	items.push({
+		key: "alertDetail",
+		type: "text",
+		rect: [ALERT_TEXT_X, 28, ALERT_TEXT_WIDTH, 16],
+		value: "",
+		font: { size: 12, weight: 400 },
+		alignment: "left",
+		color: "#FFFFFF",
+		"text-overflow": "ellipsis",
+		zOrder: Z.alertText
+	});
+
+	// Texte centre, au-dessus de la surcouche : il sert aux etats sans avatars
+	// (hors vocal, erreur, connexion) et a l'annonce d'un changement de salon,
+	// qui n'a pas d'avatar a montrer.
 	items.push({
 		key: "status",
 		type: "text",
@@ -219,7 +343,7 @@ function layout() {
 		alignment: "center",
 		color: "#FFFFFF",
 		"text-overflow": "ellipsis",
-		zOrder: 4
+		zOrder: Z.status
 	});
 	items.push({
 		key: "detail",
@@ -230,7 +354,7 @@ function layout() {
 		alignment: "center",
 		color: "#A8A8A8",
 		"text-overflow": "ellipsis",
-		zOrder: 4
+		zOrder: Z.status
 	});
 
 	return {
@@ -247,9 +371,17 @@ fs.mkdirSync(assetsDir, { recursive: true });
 fs.mkdirSync(layoutsDir, { recursive: true });
 
 fs.writeFileSync(path.join(assetsDir, "card.svg"), cardSvg());
-fs.writeFileSync(path.join(assetsDir, "frame.svg"), frameSvg(false));
-fs.writeFileSync(path.join(assetsDir, "frame-speaking.svg"), frameSvg(true));
+fs.writeFileSync(path.join(assetsDir, "frame.svg"), frameSvg(CARD_COLOR));
+fs.writeFileSync(path.join(assetsDir, "frame-speaking.svg"), frameSvg(CARD_COLOR, true));
 fs.writeFileSync(path.join(assetsDir, "avatar-placeholder.svg"), placeholderSvg());
+fs.writeFileSync(path.join(assetsDir, "alert-bg.svg"), alertBackgroundSvg());
+
+for (const [kind, color] of Object.entries(ACCENTS)) {
+	fs.writeFileSync(path.join(assetsDir, `accent-${kind}.svg`), accentSvg(color));
+	// Cadre assorti a l'aplat : sans lui, la couverture des coins de l'avatar
+	// resterait de la couleur de la carte et dessinerait un carre sur l'alerte.
+	fs.writeFileSync(path.join(assetsDir, `frame-${kind}.svg`), frameSvg(color));
+}
 fs.writeFileSync(path.join(assetsDir, "badge-mute.svg"), badgeSvg("mute"));
 fs.writeFileSync(path.join(assetsDir, "badge-deaf.svg"), badgeSvg("deaf"));
 
