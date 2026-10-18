@@ -110,6 +110,20 @@ export const ALERT_AVATAR_Y = FRAME_Y + INSET;
 export const ALERT_TEXT_X = ALERT_FRAME_X + CIRCLE + 12;
 export const ALERT_TEXT_WIDTH = WIDTH - ALERT_TEXT_X - 8;
 
+/**
+ * Nom du salon, annonce seul et en grand.
+ *
+ * Item dedie plutot que le texte d'etat : celui-ci occupe la moitie haute de la
+ * toile, ce qui laisserait le nom visiblement decale vers le haut s'il etait
+ * seul a l'ecran.
+ */
+export const CHANNEL_TEXT_X = 6;
+export const CHANNEL_TEXT_Y = 8;
+export const CHANNEL_TEXT_WIDTH = WIDTH - 12;
+export const CHANNEL_TEXT_HEIGHT = 34;
+export const CHANNEL_FONT_SIZE = 22;
+export const CHANNEL_FONT_WEIGHT = 700;
+
 // --- Voile de rappel ---------------------------------------------------------
 
 export const FLASH_BAR_X = 6;
@@ -149,7 +163,9 @@ export const Z = {
 	alertAvatar: 52,
 	alertFrame: 53,
 	alertText: 54,
-	status: 60
+	status: 60,
+	/** Nom du salon annonce seul : au-dessus de tout le reste. */
+	channelText: 61
 } as const;
 
 /** Ordre de l'avatar de la position `index`. */

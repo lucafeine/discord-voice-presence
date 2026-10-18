@@ -224,10 +224,16 @@ export class VoicePresenceService {
 			});
 			monitor.on("joined", (participant) => {
 				log.info(`${participant.name} a rejoint.`);
+
+				// Toi, c'est deja annonce par le nom du salon : un popup par-dessus
+				// ferait doublon avec ce que tu viens de faire.
+				if (participant.id === this.#selfId) return;
 				this.#emitAlert({ kind: "joined", participant });
 			});
+
 			monitor.on("left", (participant) => {
 				log.info(`${participant.name} a quitte.`);
+				if (participant.id === this.#selfId) return;
 				this.#emitAlert({ kind: "left", participant });
 			});
 

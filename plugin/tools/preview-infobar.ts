@@ -23,6 +23,11 @@ import {
 	ALERT_FRAME_Y,
 	ALERT_TEXT_X,
 	AVATAR,
+	CHANNEL_FONT_SIZE,
+	CHANNEL_TEXT_HEIGHT,
+	CHANNEL_TEXT_WIDTH,
+	CHANNEL_TEXT_X,
+	CHANNEL_TEXT_Y,
 	AVATAR_Y,
 	BADGE,
 	FLASH_BAR_HEIGHT,
@@ -137,10 +142,9 @@ async function composeAlert(layers: sharp.OverlayOptions[], alert: AlertSpec): P
 
 	const centered = alert.name === undefined;
 	const body = centered
-		? `<text x="${WIDTH / 2}" y="17" font-family="Segoe UI, Arial, sans-serif" font-size="17"
-             font-weight="600" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">${alert.title}</text>
-           <text x="${WIDTH / 2}" y="35" font-family="Segoe UI, Arial, sans-serif" font-size="12"
-             fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">${alert.detail}</text>`
+		? `<text x="${CHANNEL_TEXT_X + CHANNEL_TEXT_WIDTH / 2}" y="${CHANNEL_TEXT_Y + CHANNEL_TEXT_HEIGHT / 2}"
+             font-family="Segoe UI, Arial, sans-serif" font-size="${CHANNEL_FONT_SIZE}" font-weight="700"
+             fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">${alert.title}</text>`
 		: `<text x="${ALERT_TEXT_X}" y="18" font-family="Segoe UI, Arial, sans-serif" font-size="16"
              font-weight="600" fill="#FFFFFF" dominant-baseline="central">${alert.title}</text>
            <text x="${ALERT_TEXT_X}" y="36" font-family="Segoe UI, Arial, sans-serif" font-size="12"

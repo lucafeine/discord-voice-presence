@@ -27,6 +27,12 @@ import {
 	AVATAR_Y,
 	BADGE,
 	CIRCLE,
+	CHANNEL_FONT_SIZE,
+	CHANNEL_FONT_WEIGHT,
+	CHANNEL_TEXT_HEIGHT,
+	CHANNEL_TEXT_WIDTH,
+	CHANNEL_TEXT_X,
+	CHANNEL_TEXT_Y,
 	CUT_COLORS,
 	FRAME_Y,
 	FLASH_BAR_HEIGHT,
@@ -235,6 +241,17 @@ function layout(): object {
 		color: "#A8A8A8",
 		"text-overflow": "ellipsis",
 		zOrder: Z.status
+	});
+	items.push({
+		key: "channelName",
+		type: "text",
+		rect: [CHANNEL_TEXT_X, CHANNEL_TEXT_Y, CHANNEL_TEXT_WIDTH, CHANNEL_TEXT_HEIGHT],
+		value: "",
+		font: { size: CHANNEL_FONT_SIZE, weight: CHANNEL_FONT_WEIGHT },
+		alignment: "center",
+		color: "#FFFFFF",
+		"text-overflow": "ellipsis",
+		zOrder: Z.channelText
 	});
 
 	return {

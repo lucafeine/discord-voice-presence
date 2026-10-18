@@ -47,7 +47,7 @@ const SLOTS = GRID_SLOTS;
 const ALERT_DURATION_MS: Record<VoiceAlert["kind"], number> = {
 	joined: 3500,
 	left: 3500,
-	channel: 2000
+	channel: 3000
 };
 
 /**
@@ -505,6 +505,7 @@ export class VoicePresenceInfobar extends SingletonAction {
 			payload["alertAvatar"] = { value: "", opacity: 0 };
 			payload["alertFrame"] = { value: theme.frame, opacity: 0 };
 			payload["alertTitle"] = "";
+			payload["channelName"] = "";
 			payload["alertDetail"] = "";
 
 			// Le texte centre sert aux etats sans avatars.
@@ -522,13 +523,16 @@ export class VoicePresenceInfobar extends SingletonAction {
 		payload["alertAccent"] = { value: `imgs/infobar/accent-${alert.kind}.svg`, opacity: 1 };
 
 		if (alert.kind === "channel") {
-			// Pas d'avatar : le texte centre suffit, et evite un trou a gauche.
+			// Le nom du salon seul, en grand : pas d'avatar, donc pas de trou a
+			// gauche, et pas de nom de serveur qui viendrait le concurrencer.
 			payload["alertAvatar"] = { value: "", opacity: 0 };
 			payload["alertFrame"] = { value: theme.frame, opacity: 0 };
 			payload["alertTitle"] = "";
+			payload["channelName"] = "";
 			payload["alertDetail"] = "";
-			payload["status"] = alert.channel;
-			payload["detail"] = alert.guild ?? "";
+			payload["status"] = "";
+			payload["detail"] = "";
+			payload["channelName"] = alert.channel;
 			return;
 		}
 
