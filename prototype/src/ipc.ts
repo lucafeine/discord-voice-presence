@@ -51,6 +51,14 @@ export interface ReadyPayload {
   user: unknown;
 }
 
+/** Utilisateur courant, tel que fourni par READY. */
+export interface SelfUser {
+  id: string;
+  username: string;
+  global_name?: string | null;
+  avatar?: string | null;
+}
+
 export interface DiscordIpcEvents {
   /** Les evenements `DISPATCH` et `SUBSCRIBE` du client (READY inclus). */
   event: [message: IpcMessage];
@@ -138,6 +146,7 @@ export class DiscordIpc extends EventEmitter<DiscordIpcEvents> {
   #readySettle: { resolve: () => void; reject: (error: Error) => void } | null = null;
   #closing = false;
   #pipePath = "";
+  #readyPayload: ReadyPayload | null = null;
 
   constructor(options: DiscordIpcOptions) {
     super();
@@ -147,6 +156,32 @@ export class DiscordIpc extends EventEmitter<DiscordIpcEvents> {
 
   get pipePath(): string {
     return this.#pipePath;
+  }
+
+  /**
+   * Charge utile de l'evenement READY.
+   *
+   * READY arrive pendant `connect()` et serait donc manque par un ecouteur
+   * branche apres : on le conserve ici.
+   */
+  get readyPayload(): ReadyPayload | null {
+    return this.#readyPayload;
+  }
+
+  /** Utilisateur Discord de la session en cours. */
+  get selfUser(): SelfUser | null {
+    const user = this.#readyPayload?.user;
+    if (user === null || typeof user !== "object") return null;
+
+    const candidate = user as Partial<SelfUser>;
+    if (typeof candidate.id !== "string" || typeof candidate.username !== "string") return null;
+
+    return {
+      id: candidate.id,
+      username: candidate.username,
+      global_name: candidate.global_name ?? null,
+      avatar: candidate.avatar ?? null,
+    };
   }
 
   get connected(): boolean {
@@ -187,9 +222,18 @@ export class DiscordIpc extends EventEmitter<DiscordIpcEvents> {
     });
   }
 
-  /** Envoie une commande RPC et resout avec son champ `data`. */
-  call<T = unknown>(cmd: string, args?: Record<string, unknown>): Promise<T> {
-    return this.#request<T>({ cmd, args });
+  /**
+   * Envoie une commande RPC et resout avec son champ `data`.
+   *
+   * `timeoutMs` permet de laisser plus de temps aux commandes qui attendent une
+   * action de l'utilisateur, comme AUTHORIZE (fenetre de consentement).
+   */
+  call<T = unknown>(
+    cmd: string,
+    args?: Record<string, unknown>,
+    timeoutMs?: number,
+  ): Promise<T> {
+    return this.#request<T>({ cmd, args }, timeoutMs);
   }
 
   /**
@@ -225,14 +269,15 @@ export class DiscordIpc extends EventEmitter<DiscordIpcEvents> {
 
   // --- Interne ---------------------------------------------------------------
 
-  #request<T>(payload: Record<string, unknown>): Promise<T> {
+  #request<T>(payload: Record<string, unknown>, timeoutMs?: number): Promise<T> {
     const nonce = randomUUID();
+    const timeout = timeoutMs ?? this.#timeoutMs;
 
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.#pending.delete(nonce);
-        reject(new Error(`Delai depasse (${this.#timeoutMs} ms) pour ${String(payload["cmd"])}`));
-      }, this.#timeoutMs);
+        reject(new Error(`Delai depasse (${timeout} ms) pour ${String(payload["cmd"])}`));
+      }, timeout);
       timer.unref();
 
       this.#pending.set(nonce, { resolve: resolve as (value: unknown) => void, reject, timer });
@@ -319,6 +364,7 @@ export class DiscordIpc extends EventEmitter<DiscordIpcEvents> {
     }
 
     if (message.evt === "READY") {
+      this.#readyPayload = message.data as ReadyPayload;
       this.#readySettle?.resolve();
       this.#readySettle = null;
     }
