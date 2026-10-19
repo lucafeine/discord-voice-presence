@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400" role="img" aria-label="Voice Presence for Discord — Discord voice channel participants on the Stream Deck Neo Infobar">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#16181f"/>
+      <stop offset="1" stop-color="#0b0c10"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#23a55a" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#23a55a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="infobar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#232733"/>
+      <stop offset="1" stop-color="#12151c"/>
+    </linearGradient>
+    <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5865f2"/>
+      <stop offset="1" stop-color="#23a55a"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="400" fill="url(#bg)"/>
+  <ellipse cx="1000" cy="200" rx="330" ry="220" fill="url(#glow)"/>
+
+  <!-- Left: name and tagline -->
+  <text x="80" y="130" font-family="Segoe UI, Arial, Helvetica, sans-serif" font-size="56" font-weight="700" fill="#ffffff">Voice Presence for Discord</text>
+  <text x="80" y="180" font-family="Segoe UI, Arial, Helvetica, sans-serif" font-size="24" fill="#a8adb8">Discord voice channel participants</text>
+  <text x="80" y="212" font-family="Segoe UI, Arial, Helvetica, sans-serif" font-size="24" fill="#a8adb8">on your Stream Deck Neo Infobar.</text>
+  <rect x="80" y="242" width="238" height="5" rx="2.5" fill="url(#rule)"/>
+
+  <g font-family="Segoe UI, Arial, Helvetica, sans-serif" font-size="16" fill="#cfd3dc">
+    <rect x="80" y="280" width="182" height="38" rx="19" fill="#1a1c22" stroke="#2b2d31"/>
+    <text x="171" y="305" text-anchor="middle">Stream Deck Neo</text>
+
+    <rect x="274" y="280" width="238" height="38" rx="19" fill="#1a1c22" stroke="#2b2d31"/>
+    <text x="393" y="305" text-anchor="middle">English · Français · Español</text>
+  </g>
+
+  <!-- Right: the Infobar, drawn at 1.8x with the device geometry -->
+  <g transform="translate(795,155) scale(1.8)">
+    <rect x="0.5" y="0.5" width="231" height="49" rx="10" fill="url(#infobar)" stroke="#2b2d31"/>
+
+    <circle cx="32" cy="25" r="22" fill="#5865f2"/>
+    <circle cx="88" cy="25" r="22" fill="#eb459e"/>
+    <circle cx="144" cy="25" r="22" fill="#57f287"/>
+    <circle cx="200" cy="25" r="22" fill="#fee75c"/>
+
+    <!-- Speaking ring: the most useful cue at a glance -->
+    <circle cx="88" cy="25" r="25" fill="none" stroke="#23a55a" stroke-width="3"/>
+
+    <!-- Mute badge, bottom-right of the first avatar -->
+    <g transform="translate(47.5,40.5)">
+      <circle r="9" fill="#ed4245" stroke="#0b0c10" stroke-width="1.5"/>
+      <g stroke="#ffffff" stroke-width="1.3" fill="none" stroke-linecap="round">
+        <rect x="-1.6" y="-4.6" width="3.2" height="5.6" rx="1.6"/>
+        <path d="M-3 -1.4a3 3 0 0 0 6 0"/>
+        <line x1="0" y1="1.8" x2="0" y2="3.4"/>
+      </g>
+      <line x1="-4.2" y1="-4.2" x2="4.2" y2="4.2" stroke="#ed4245" stroke-width="2.6" stroke-linecap="round"/>
+      <line x1="-4.2" y1="-4.2" x2="4.2" y2="4.2" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round"/>
+    </g>
+  </g>
+</svg>

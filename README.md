@@ -1,11 +1,51 @@
-# Voice Presence for Discord
+<p align="center">
+  <img src="docs/banner.svg" alt="Voice Presence for Discord — Discord voice channel participants on the Stream Deck Neo Infobar" width="100%">
+</p>
 
-A Stream Deck plugin **that complements the Discord plugin from Elgato**: it
-shows the avatars of the people in your voice channel on the **Stream Deck Neo
-Infobar**.
+**Voice Presence for Discord** is a Stream Deck plugin that shows the avatars of
+everyone in your Discord voice channel on the **Stream Deck Neo Infobar**. It is
+meant to be used alongside the **Discord plugin from Elgato**: Discord keeps its
+mute, deafen, and join keys, while Voice Presence fills the Infobar.
 
-Elgato's Discord plugin keeps its buttons (mute, deafen, join...); this one only
-uses the Infobar and remains purely informational.
+Everything goes through Discord's local IPC RPC, so there is no bot, no account
+token, and no screen scraping.
+
+## Features
+
+- **Participant avatars** on the Infobar — centered when they fit, scrolling
+  beyond four people.
+- **Speaking highlight** — a green ring around whoever is talking.
+- **Mute and deafen badges** on each avatar.
+- **Join, leave, and channel announcements** as short overlays.
+- **Reminder veil** when *you* are muted or deafened.
+- **Configurable background color** from the Property Inspector.
+- Localized in **English**, **French**, and **Spanish**.
+
+## Requirements
+
+| Item | Detail |
+| --- | --- |
+| OS | Windows 10 or later |
+| Discord | Discord for Windows, running |
+| Hardware | Stream Deck **Neo** (the Infobar) |
+| Software | Stream Deck 7.6+ / SDK 3.0 |
+| Discord | A one-time authorization |
+
+## Installation
+
+1. Install the plugin from the **Elgato Marketplace**, or from source:
+
+   ```powershell
+   cd plugin
+   npm install
+   npm run build
+   npm run link
+   ```
+
+2. Drop the **Voice Channel (Infobar)** action on your Stream Deck Neo.
+3. Press **Reconnect to Discord** once and approve Discord's authorization.
+
+The background color can then be changed in the action's Property Inspector.
 
 ## How it works
 
@@ -16,10 +56,9 @@ uses the Infobar and remains purely informational.
 | Participants | `GET_SELECTED_VOICE_CHANNEL` plus `VOICE_STATE_*` / `SPEAKING_*` events |
 | Authorization | OAuth `rpc` scope, granted **once** |
 
-Everything goes through Discord's **local IPC RPC** (`\\.\pipe\discord-ipc-0`):
-no bot, no account token, no scraping.
+Everything goes through Discord's **local IPC RPC** (`\\.\pipe\discord-ipc-0`).
 
-## Structure
+## Development
 
 ```
 prototype/   Phase 1 - validate the Discord side, outside Stream Deck
@@ -28,9 +67,10 @@ plugin/      Phase 2 - the Stream Deck plugin (SDK 3, Infobar actions)
 
 The prototype is the **test bench**: it validates the Discord layer
 (`npm run smoke`, `status`, `watch`, `preview`) and holds the `VoiceMonitor`
-tests. The plugin is the published artifact.
+tests. The plugin is the published artifact. See
+[`prototype/README.md`](prototype/README.md).
 
-## Plugin
+### Plugin commands
 
 ```powershell
 cd plugin
@@ -38,20 +78,20 @@ npm install
 npm run build          # writes <uuid>.sdPlugin/bin/plugin.js
 npm run assets         # regenerates the Infobar layout and assets
 npm run icons          # regenerates the PNG icons and checks the SVGs
-npm run locales        # checks that en.json and fr.json expose the same keys
+npm run locales        # checks that fr.json and es.json match en.json keys
 npm run validate       # validates the manifest and layout
 npm run link           # installs the plugin in Stream Deck
 npm run watch          # continuous build + plugin restart
-npm run release        # build + assets + icons + validation + pack
+npm run release        # build + assets + icons + locales + validation + pack
 ```
 
 The plugin follows the author's other plugin conventions (`com.lucas.*`, SDK 3,
 `Software.MinimumVersion` 7.6, rollup).
 
-**`sharp` cannot be bundled** in the plugin: it is a native module, and Stream
-Deck runs a single JavaScript bundle. It remains a devDependency, used only to
-generate the plugin icons. The Infobar itself is rendered with the layout engine
-and static assets.
+> **`sharp` cannot be bundled** in the plugin: it is a native module, and Stream
+> Deck runs a single JavaScript bundle. It stays a devDependency, used only to
+> generate icons and the local preview. The Infobar itself is rendered by the
+> layout engine and static assets.
 
 ## Icons
 
@@ -67,14 +107,15 @@ The icon set is the only visual asset kept in the repository:
 `npm run icons` verifies the nominal dimensions and the monochrome rule, then
 regenerates the plugin icon PNGs.
 
-The plugin is localized in **English** and **French**: `en.json` and `fr.json`
-cover the manifest, the Infobar text, and the Property Inspector. English is
-the fallback for every other language, and the Property Inspector follows the
-Stream Deck application language when it is available.
+## Localization
 
-## Phase 1 - prototype
+The plugin is localized in **English**, **French**, and **Spanish**: `en.json`,
+`fr.json`, and `es.json` cover the manifest, the Infobar text, and the Property
+Inspector. English is the fallback for every other language, and the Property
+Inspector follows the Stream Deck application language when it is available.
 
-See [`prototype/README.md`](prototype/README.md).
+`npm run locales` checks before packaging that every locale exposes exactly the
+same keys as `en.json`.
 
 ## Known limitations
 
