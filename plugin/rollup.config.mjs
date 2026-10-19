@@ -27,6 +27,7 @@ const config = {
 				this.addWatchFile(`${sdPlugin}/manifest.json`);
 				this.addWatchFile(`${sdPlugin}/en.json`);
 				this.addWatchFile(`${sdPlugin}/fr.json`);
+				this.addWatchFile(`${sdPlugin}/es.json`);
 				this.addWatchFile(`${sdPlugin}/layouts/voice-presence.json`);
 			}
 		},

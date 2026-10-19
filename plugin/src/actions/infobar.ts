@@ -63,7 +63,7 @@ const ALERT_DURATION_MS: Record<VoiceAlert["kind"], number> = {
 const FLASH_ON_MS = 2_500;
 const FLASH_CYCLE_MS = 7_500;
 
-/** Translates a key loaded from en.json / fr.json. */
+/** Translates a key loaded from the locale files (en, fr, es). */
 const t = (key: string): string => streamDeck.i18n.translate(key);
 
 /** Beyond this, drop: better to miss an announcement than to fall behind. */
