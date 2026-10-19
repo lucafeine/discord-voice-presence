@@ -114,8 +114,10 @@ The plugin is localized in **English**, **French**, and **Spanish**: `en.json`,
 Inspector. English is the fallback for every other language, and the Property
 Inspector follows the Stream Deck application language when it is available.
 
-`npm run locales` checks before packaging that every locale exposes exactly the
-same keys as `en.json`.
+`npm run locales` checks before packaging that every listed language exposes
+exactly the same keys as `en.json`, and that the author and name match the
+manifest. The shipped languages are declared in
+[`plugin/marketplace/metadata.json`](plugin/marketplace/metadata.json).
 
 ## Known limitations
 

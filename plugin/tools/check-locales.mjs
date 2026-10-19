@@ -1,9 +1,11 @@
 /**
- * Checks the localization files.
+ * Checks the localization files against the marketplace metadata.
  *
- * Every Stream Deck language falls back to English, so `en.json` is the
- * reference. Each other locale must expose exactly the same keys; missing or
- * extra keys are reported before packaging.
+ * `marketplace/metadata.json` lists the languages shipped with the plugin and
+ * mirrors the manifest's author and name. Every Stream Deck language falls back
+ * to English, so `en.json` is the reference: each listed language must expose
+ * exactly the same keys, and missing or extra keys are reported before
+ * packaging.
  *
  * Usage: npm run locales
  */
@@ -15,8 +17,27 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const plugin = path.join(root, "com.lucas.discord-voice-presence.sdPlugin");
 const manifest = JSON.parse(fs.readFileSync(path.join(plugin, "manifest.json"), "utf8"));
+const metadata = JSON.parse(
+	fs.readFileSync(path.join(root, "marketplace", "metadata.json"), "utf8")
+);
 
-const languages = ["fr", "es"];
+// The metadata is what the Marketplace listing shows: a drift between it and
+// the manifest would publish a name or an author that does not match the plugin.
+if (metadata.author !== manifest.Author) {
+	throw new Error(
+		`metadata.json author "${metadata.author}" does not match the manifest author "${manifest.Author}".`
+	);
+}
+if (metadata.name !== manifest.Name) {
+	throw new Error(
+		`metadata.json name "${metadata.name}" does not match the manifest name "${manifest.Name}".`
+	);
+}
+
+const languages = metadata.languages;
+if (!Array.isArray(languages) || languages.length === 0 || !languages.includes("en")) {
+	throw new Error('metadata.json must list the languages and include "en".');
+}
 
 const readLocale = (language) =>
 	JSON.parse(fs.readFileSync(path.join(plugin, `${language}.json`), "utf8"));
@@ -34,19 +55,11 @@ const flatten = (value, prefix = "") => {
 	return keys;
 };
 
-const en = readLocale("en");
-
-if (typeof en.Name !== "string" || en.Name === "") {
-	throw new Error("en.json must define a Name.");
-}
-if (typeof en.Description !== "string" || en.Description.length < 250) {
-	throw new Error("en.json Description must contain at least 250 characters.");
-}
-
-const reference = flatten(en.Localization ?? {});
+const locales = new Map(languages.map((language) => [language, readLocale(language)]));
+const reference = flatten(locales.get("en").Localization ?? {});
 
 for (const language of languages) {
-	const locale = readLocale(language);
+	const locale = locales.get(language);
 
 	if (typeof locale.Name !== "string" || locale.Name === "") {
 		throw new Error(`${language}.json must define a Name.`);
@@ -56,13 +69,12 @@ for (const language of languages) {
 	}
 
 	for (const action of manifest.Actions) {
-		if (en[action.UUID] === undefined) {
-			throw new Error(`en.json is missing the ${action.UUID} action.`);
-		}
 		if (locale[action.UUID] === undefined) {
 			throw new Error(`${language}.json is missing the ${action.UUID} action.`);
 		}
 	}
+
+	if (language === "en") continue;
 
 	const translated = flatten(locale.Localization ?? {});
 
@@ -84,5 +96,5 @@ for (const language of languages) {
 }
 
 console.log(
-	`locales checked: en, ${languages.join(", ")} (${Object.keys(reference).length} runtime keys)`
+	`locales checked: ${languages.join(", ")} (${Object.keys(reference).length} runtime keys)`
 );
