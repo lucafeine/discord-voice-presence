@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Validation du RPC Discord local (participants + avatars) avant le plugin Stream Deck Neo",
+  "author": "Lucafeine <lucafeine@proton.me>",
   "type": "module",
   "engines": {
     "node": ">=22.18"

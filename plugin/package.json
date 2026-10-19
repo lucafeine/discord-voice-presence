@@ -3,6 +3,7 @@
 	"version": "1.0.0",
 	"private": true,
 	"description": "Display the Discord voice channel participants on the Stream Deck Neo Infobar.",
+	"author": "Lucafeine <lucafeine@proton.me>",
 	"type": "module",
 	"scripts": {
 		"build": "rollup -c",
