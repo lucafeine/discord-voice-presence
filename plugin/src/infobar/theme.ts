@@ -232,6 +232,9 @@ export function frameSvg(coverColor: string, speaking = false): string {
  *
  * One drawing for both uses: the badge surrounds it with a colored disc, the
  * veil places it alone, in white, next to the text.
+ *
+ * Both cuts are struck through with the same slash — a microphone for mute, a
+ * headset for deafen — so the pictogram alone tells which cut it is.
  */
 export function cutGlyph(kind: string): string {
 	if (kind === "mute") {
@@ -248,7 +251,9 @@ export function cutGlyph(kind: string): string {
            <path d="M5.2 14.2v-2.6a6.8 6.8 0 0 1 13.6 0v2.6"/>
          </g>
          <rect x="4" y="12.4" width="3.7" height="6.4" rx="1.7" fill="#fff"/>
-         <rect x="16.3" y="12.4" width="3.7" height="6.4" rx="1.7" fill="#fff"/>`;
+         <rect x="16.3" y="12.4" width="3.7" height="6.4" rx="1.7" fill="#fff"/>
+         <line x1="5.6" y1="5.6" x2="18.4" y2="18.4" stroke="#ed4245" stroke-width="4.8" stroke-linecap="round"/>
+         <line x1="5.6" y1="5.6" x2="18.4" y2="18.4" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>`;
 }
 
 /** Cut color, with an explicit failure when the key does not exist. */
