@@ -10,5 +10,5 @@
 		"types": ["node"]
 	},
 	"include": ["src/**/*.ts"],
-	"exclude": ["node_modules", "com.lucas.discord-voice-presence.sdPlugin"]
+	"exclude": ["node_modules", "com.lucafeine.discord-voice-presence.sdPlugin"]
 }

@@ -1,7 +1,7 @@
 {
 	"Name": "Voice Presence for Discord",
 	"Description": "Voice Presence for Discord muestra quién está en tu canal de voz sin salir de tu Stream Deck. El plugin muestra hasta cuatro avatares de participantes en la Infobar del Stream Deck Neo, resalta a la persona que habla y añade indicadores de silencio y sordera. También anuncia entradas, salidas y cambios de canal. Úsalo junto con el plugin de Discord de Elgato: Discord conserva sus teclas de silencio, sordera y unirse, mientras que Voice Presence ocupa la Infobar. Requiere Discord para Windows y un Stream Deck Neo. Se necesita una autorización única de Discord.",
-	"com.lucas.discord-voice-presence.infobar": {
+	"com.lucafeine.discord-voice-presence.infobar": {
 		"Name": "Canal de voz (Infobar)",
 		"Tooltip": "Muestra los participantes del canal de voz de Discord en la Infobar del Stream Deck Neo.",
 		"States": [
@@ -10,7 +10,7 @@
 			}
 		]
 	},
-	"com.lucas.discord-voice-presence.connect": {
+	"com.lucafeine.discord-voice-presence.connect": {
 		"Name": "Reconectar a Discord",
 		"Tooltip": "Solicita una nueva autorización de Discord y vuelve a conectar el plugin.",
 		"States": [

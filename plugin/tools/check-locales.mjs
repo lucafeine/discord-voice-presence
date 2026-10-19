@@ -15,7 +15,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const plugin = path.join(root, "com.lucas.discord-voice-presence.sdPlugin");
+const plugin = path.join(root, "com.lucafeine.discord-voice-presence.sdPlugin");
 const manifest = JSON.parse(fs.readFileSync(path.join(plugin, "manifest.json"), "utf8"));
 const metadata = JSON.parse(
 	fs.readFileSync(path.join(root, "marketplace", "metadata.json"), "utf8")

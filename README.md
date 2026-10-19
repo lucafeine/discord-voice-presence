@@ -85,7 +85,7 @@ npm run watch          # continuous build + plugin restart
 npm run release        # build + assets + icons + locales + validation + pack
 ```
 
-The plugin follows the author's other plugin conventions (`com.lucas.*`, SDK 3,
+The plugin follows the author's other plugin conventions (`com.lucafeine.*`, SDK 3,
 `Software.MinimumVersion` 7.6, rollup).
 
 > **`sharp` cannot be bundled** in the plugin: it is a native module, and Stream

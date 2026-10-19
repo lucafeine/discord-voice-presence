@@ -71,7 +71,7 @@ import {
 } from "../src/infobar/theme.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const plugin = path.join(root, "com.lucas.discord-voice-presence.sdPlugin");
+const plugin = path.join(root, "com.lucafeine.discord-voice-presence.sdPlugin");
 const assetsDir = path.join(plugin, "imgs", "infobar");
 const layoutsDir = path.join(plugin, "layouts");
 

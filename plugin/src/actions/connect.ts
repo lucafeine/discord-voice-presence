@@ -11,7 +11,7 @@ import { voicePresence } from "../core/voice-presence-service.js";
  * button clears the stored token before requesting it again, otherwise the
  * authorization would be silently reused and nothing would open.
  */
-@action({ UUID: "com.lucas.discord-voice-presence.connect" })
+@action({ UUID: "com.lucafeine.discord-voice-presence.connect" })
 export class ConnectAction extends SingletonAction {
 	private readonly logger = streamDeck.logger.createScope("action.connect");
 

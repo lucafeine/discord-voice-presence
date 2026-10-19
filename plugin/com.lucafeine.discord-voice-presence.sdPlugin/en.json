@@ -1,7 +1,7 @@
 {
 	"Name": "Voice Presence for Discord",
 	"Description": "Voice Presence for Discord shows who is in your voice channel without leaving your Stream Deck. The plugin displays up to four participant avatars on the Stream Deck Neo Infobar, highlights the person speaking, and adds mute and deafen badges. It also announces arrivals, departures, and channel changes. Use it alongside the Discord plugin from Elgato: Discord keeps its mute, deafen, and join keys, while Voice Presence fills the Infobar. Requires Discord for Windows and a Stream Deck Neo. A one-time Discord authorization is required.",
-	"com.lucas.discord-voice-presence.infobar": {
+	"com.lucafeine.discord-voice-presence.infobar": {
 		"Name": "Voice Channel (Infobar)",
 		"Tooltip": "Show Discord voice channel participants on the Stream Deck Neo Infobar.",
 		"States": [
@@ -10,7 +10,7 @@
 			}
 		]
 	},
-	"com.lucas.discord-voice-presence.connect": {
+	"com.lucafeine.discord-voice-presence.connect": {
 		"Name": "Reconnect to Discord",
 		"Tooltip": "Request a new Discord authorization and reconnect the plugin.",
 		"States": [

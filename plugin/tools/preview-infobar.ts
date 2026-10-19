@@ -49,7 +49,7 @@ import {
 } from "../src/infobar/theme.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const plugin = path.join(root, "com.lucas.discord-voice-presence.sdPlugin");
+const plugin = path.join(root, "com.lucafeine.discord-voice-presence.sdPlugin");
 const assets = path.join(plugin, "imgs", "infobar");
 const outDir = path.join(root, "out");
 

@@ -105,7 +105,7 @@ interface FlashSlot {
  * layout: changing layout on every event would require a round trip and make
  * the display flicker.
  */
-@action({ UUID: "com.lucas.discord-voice-presence.infobar" })
+@action({ UUID: "com.lucafeine.discord-voice-presence.infobar" })
 export class VoicePresenceInfobar extends SingletonAction {
 	private readonly logger = streamDeck.logger.createScope("action.infobar");
 	private readonly subscriptions = new Map<string, () => void>();

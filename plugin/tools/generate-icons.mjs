@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const plugin = path.join(root, "com.lucas.discord-voice-presence.sdPlugin");
+const plugin = path.join(root, "com.lucafeine.discord-voice-presence.sdPlugin");
 const source = path.join(root, "assets", "icons", "plugin.svg");
 
 const pluginIconSizes = [

@@ -11,10 +11,10 @@
 		"icons": "node tools/generate-icons.mjs",
 		"locales": "node tools/check-locales.mjs",
 		"preview": "node tools/preview-infobar.ts",
-		"watch": "rollup -c -w --watch.onEnd=\"streamdeck restart com.lucas.discord-voice-presence\"",
-		"validate": "streamdeck validate com.lucas.discord-voice-presence.sdPlugin",
-		"link": "streamdeck link com.lucas.discord-voice-presence.sdPlugin",
-		"pack": "streamdeck pack -f com.lucas.discord-voice-presence.sdPlugin",
+		"watch": "rollup -c -w --watch.onEnd=\"streamdeck restart com.lucafeine.discord-voice-presence\"",
+		"validate": "streamdeck validate com.lucafeine.discord-voice-presence.sdPlugin",
+		"link": "streamdeck link com.lucafeine.discord-voice-presence.sdPlugin",
+		"pack": "streamdeck pack -f com.lucafeine.discord-voice-presence.sdPlugin",
 		"release": "npm run build && npm run assets && npm run icons && npm run locales && npm run validate && npm run pack"
 	},
 	"dependencies": {
