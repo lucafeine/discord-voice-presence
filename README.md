@@ -39,11 +39,10 @@ npm run build          # writes <uuid>.sdPlugin/bin/plugin.js
 npm run assets         # regenerates the Infobar layout and assets
 npm run icons          # regenerates the PNG icons and checks the SVGs
 npm run locales        # checks that en.json and fr.json expose the same keys
-npm run marketplace    # generates the Marketplace listing visuals
 npm run validate       # validates the manifest and layout
 npm run link           # installs the plugin in Stream Deck
 npm run watch          # continuous build + plugin restart
-npm run release        # build + assets + icons + visuals + validation + pack
+npm run release        # build + assets + icons + validation + pack
 ```
 
 The plugin follows the author's other plugin conventions (`com.lucas.*`, SDK 3,
@@ -51,27 +50,22 @@ The plugin follows the author's other plugin conventions (`com.lucas.*`, SDK 3,
 
 **`sharp` cannot be bundled** in the plugin: it is a native module, and Stream
 Deck runs a single JavaScript bundle. It remains a devDependency, used only to
-generate icons and Marketplace visuals. The Infobar itself is rendered with the
-layout engine and static assets.
+generate the plugin icons. The Infobar itself is rendered with the layout engine
+and static assets.
 
-## Marketplace publication
+## Icons
 
-The project follows the Elgato guidelines for metadata, icons, layouts, the
-Property Inspector, and packaging:
+The icon set is the only visual asset kept in the repository:
 
 | Item | Format |
 | --- | --- |
 | Plugin icon | PNG `256 × 256` and `512 × 512` (`icon.png`, `icon@2x.png`) |
-| Marketplace app icon | PNG `288 × 288` |
 | Category icon | SVG `28 × 28`, white `#FFFFFF`, transparent background |
 | Action icons | SVG `20 × 20`, white `#FFFFFF`, transparent background |
 | Key icons | SVG `72 × 72` |
-| Thumbnail and gallery | PNG `1920 × 960` |
 
-The visuals and the English description live in
-[`plugin/marketplace/`](plugin/marketplace/). The submission checklist,
-metadata, and remaining items to complete before publication are documented
-there.
+`npm run icons` verifies the nominal dimensions and the monochrome rule, then
+regenerates the plugin icon PNGs.
 
 The plugin is localized in **English** and **French**: `en.json` and `fr.json`
 cover the manifest, the Infobar text, and the Property Inspector. English is

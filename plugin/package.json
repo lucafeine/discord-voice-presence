@@ -9,13 +9,12 @@
 		"assets": "node tools/generate-infobar.ts",
 		"icons": "node tools/generate-icons.mjs",
 		"locales": "node tools/check-locales.mjs",
-		"marketplace": "node tools/generate-marketplace.ts",
 		"preview": "node tools/preview-infobar.ts",
 		"watch": "rollup -c -w --watch.onEnd=\"streamdeck restart com.lucas.discord-voice-presence\"",
 		"validate": "streamdeck validate com.lucas.discord-voice-presence.sdPlugin",
 		"link": "streamdeck link com.lucas.discord-voice-presence.sdPlugin",
 		"pack": "streamdeck pack -f com.lucas.discord-voice-presence.sdPlugin",
-		"release": "npm run build && npm run assets && npm run icons && npm run locales && npm run marketplace && npm run validate && npm run pack"
+		"release": "npm run build && npm run assets && npm run icons && npm run locales && npm run validate && npm run pack"
 	},
 	"dependencies": {
 		"@elgato/streamdeck": "^3.0.2"
