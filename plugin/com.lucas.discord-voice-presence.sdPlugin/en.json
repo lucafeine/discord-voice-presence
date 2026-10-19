@@ -1,0 +1,47 @@
+{
+	"Name": "Voice Presence for Discord",
+	"Description": "Voice Presence for Discord shows who is in your voice channel without leaving your Stream Deck. The plugin displays up to four participant avatars on the Stream Deck Neo Infobar, highlights the person speaking, and adds mute and deafen badges. It also announces arrivals, departures, and channel changes. Use it alongside the Discord plugin from Elgato: Discord keeps its mute, deafen, and join keys, while Voice Presence fills the Infobar. Requires Discord for Windows and a Stream Deck Neo. A one-time Discord authorization is required.",
+	"com.lucas.discord-voice-presence.infobar": {
+		"Name": "Voice Channel (Infobar)",
+		"Tooltip": "Show Discord voice channel participants on the Stream Deck Neo Infobar.",
+		"States": [
+			{
+				"Name": "Voice Presence"
+			}
+		]
+	},
+	"com.lucas.discord-voice-presence.connect": {
+		"Name": "Reconnect to Discord",
+		"Tooltip": "Request a new Discord authorization and reconnect the plugin.",
+		"States": [
+			{
+				"Name": "Reconnect"
+			}
+		]
+	},
+	"Localization": {
+		"status": {
+			"error": "Discord unavailable",
+			"connecting": "Connecting to Discord...",
+			"notInVoice": "Not in a voice channel",
+			"emptyChannel": "Channel empty"
+		},
+		"detail": {
+			"errorFallback": "Start the Discord app",
+			"connecting": "First launch: authorize the plugin",
+			"notInVoice": "Join a voice channel"
+		},
+		"error": {
+			"discordMissing": "Start the Discord app",
+			"discordUnresponsive": "Discord is not responding, retrying automatically"
+		},
+		"alert": {
+			"joined": "joined the voice channel",
+			"left": "left the voice channel"
+		},
+		"flash": {
+			"mute": "You are muted",
+			"deafen": "You are deafened"
+		}
+	}
+}

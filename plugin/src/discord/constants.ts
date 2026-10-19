@@ -1,21 +1,19 @@
 /**
- * Identite de l'application Discord utilisee par le plugin.
+ * Discord application identity used by the plugin.
  *
- * `client_id` est public par nature : il est visible dans toute URL
- * d'autorisation. Le flux PKCE n'embarque aucun secret, donc rien d'extractible
- * ici.
+ * `client_id` is public by nature: it is visible in every authorization URL.
+ * The PKCE flow embeds no secret, so nothing is extractable here.
  *
- * ⚠️ Pour une publication sur le Marketplace, il faut une application Discord
- * dediee au plugin (celle-ci appartient au developpeur et sert au developpement),
- * avec :
- *   - OAuth2 -> Public Client active
- *   - OAuth2 -> Redirects : une URI enregistree, en premiere position
+ * For a Marketplace release, use a Discord application dedicated to the plugin
+ * (this one belongs to the developer and is used for development), with:
+ *   - OAuth2 -> Public Client enabled
+ *   - OAuth2 -> Redirects: one URI registered, in first position
  */
 export const DISCORD_CLIENT_ID = "1561445270804504647";
 
 /**
- * `rpc` couvre GET_SELECTED_VOICE_CHANNEL, VOICE_STATE_* et
- * VOICE_CHANNEL_SELECT. Ce dernier est le seul moyen d'etre notifie
- * instantanement d'un changement de salon.
+ * `rpc` covers GET_SELECTED_VOICE_CHANNEL, VOICE_STATE_*, and
+ * VOICE_CHANNEL_SELECT. The latter is the only way to be notified instantly of
+ * a channel change.
  */
 export const DISCORD_SCOPES = ["rpc"];

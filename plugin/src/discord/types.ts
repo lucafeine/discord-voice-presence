@@ -1,11 +1,11 @@
 /**
- * Types du RPC Discord, limites a ce dont on a besoin.
+ * Discord RPC types, limited to what we need.
  *
- * Reference : https://docs.discord.food/topics/rpc
+ * Reference: https://docs.discord.food/topics/rpc
  *
- * Attention : le client Discord serialise parfois ces objets avec sa
- * representation interne (camelCase, champs supplementaires ou manquants)
- * plutot qu'avec la structure de l'API. On reste donc tolerant.
+ * Note: the Discord client sometimes serializes these objects with its internal
+ * representation (camelCase, extra or missing fields) rather than the API
+ * structure. We therefore stay tolerant.
  */
 
 export type Snowflake = string;
@@ -15,7 +15,7 @@ export interface RpcUser {
   username: string;
   discriminator: string;
   global_name?: string | null;
-  /** Hash d'avatar, ou `null` si l'utilisateur garde l'avatar par defaut. */
+  /** Avatar hash, or `null` if the user keeps the default avatar. */
   avatar?: string | null;
   avatar_decoration_data?: { asset: string; sku_id: Snowflake } | null;
   bot: boolean;
@@ -24,7 +24,7 @@ export interface RpcUser {
   premium_type?: number;
 }
 
-/** Etat vocal tel que vu par le client (mute/deaf serveur, suppression...). */
+/** Voice state as seen by the client (server mute/deaf, suppression...). */
 export interface RpcRemoteVoiceState {
   mute: boolean;
   deaf: boolean;
@@ -33,10 +33,10 @@ export interface RpcRemoteVoiceState {
   suppress: boolean;
 }
 
-/** Une entree `voice_states` de `GET_SELECTED_VOICE_CHANNEL`. */
+/** A `voice_states` entry from `GET_SELECTED_VOICE_CHANNEL`. */
 export interface RpcVoiceState {
   nick: string;
-  /** Mute *local* (c'est ton volume a toi qui est coupe, invisible pour les autres). */
+  /** *Local* mute (your own volume is muted, invisible to others). */
   mute: boolean;
   volume: number;
   pan: { left: number; right: number };
@@ -53,7 +53,7 @@ export interface RpcChannel {
   user_limit?: number;
   guild_id?: Snowflake | null;
   position?: number;
-  /** Les personnes presentes dans le salon. */
+  /** People currently in the channel. */
   voice_states?: RpcVoiceState[];
 }
 
@@ -63,7 +63,7 @@ export interface RpcGuild {
   icon_url?: string | null;
 }
 
-/** Reponse de `GET_IMAGE`. */
+/** `GET_IMAGE` response. */
 export interface RpcImage {
   data_url: string;
 }
@@ -79,27 +79,27 @@ export interface VoiceChannelSelectEvent {
 }
 
 /**
- * Modele interne : ce dont le rendu a besoin, independamment de la forme
- * exacte renvoyee par Discord.
+ * Internal model: what rendering needs, independently of the exact shape
+ * returned by Discord.
  */
 export interface Participant {
   id: Snowflake;
-  /** Nom affiche : surnom de serveur si present, sinon nom global, sinon username. */
+  /** Display name: guild nickname if present, else global name, else username. */
   name: string;
   username: string;
   avatarHash: string | null;
   avatarDecorationAsset: string | null;
   isBot: boolean;
-  /** Mute par lui-meme (micro coupe). */
+  /** Self-muted (microphone off). */
   selfMute: boolean;
-  /** Casque coupe (n'entend pas). */
+  /** Self-deafened (cannot hear). */
   selfDeaf: boolean;
-  /** Mute par le serveur. */
+  /** Server-muted. */
   serverMute: boolean;
-  /** Deafen par le serveur. */
+  /** Server-deafened. */
   serverDeaf: boolean;
-  /** Permission de parler retiree. */
+  /** Permission to speak removed. */
   suppressed: boolean;
-  /** Est en train de parler (evenements SPEAKING_*). */
+  /** Currently speaking (SPEAKING_* events). */
   speaking: boolean;
 }

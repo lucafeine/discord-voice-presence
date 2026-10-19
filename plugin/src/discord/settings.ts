@@ -1,13 +1,13 @@
 /**
- * Conservation des jetons OAuth dans les reglages globaux de Stream Deck.
+ * Stores OAuth tokens in Stream Deck global settings.
  *
- * Les reglages globaux sont partages par toutes les actions du plugin et
- * persistent entre deux sessions, ce qui evite d'ecrire un fichier et de
- * dependre du dossier d'installation.
+ * Global settings are shared by all plugin actions and persist between
+ * sessions, which avoids writing a file and depending on the installation
+ * folder.
  *
- * Le jeton est stocke serialise en JSON : les reglages de Stream Deck n'acceptent
- * que des valeurs JSON simples, et cela evite de faire dependre la logique
- * d'autorisation d'un format particulier.
+ * The token is stored as serialized JSON: Stream Deck settings only accept
+ * simple JSON values, and this keeps the authorization logic independent of a
+ * particular format.
  */
 
 import streamDeck from "@elgato/streamdeck";
@@ -16,10 +16,10 @@ import { isTokenSet, type TokenSet, type TokenStore } from "./auth.js";
 const TOKENS_KEY = "discordTokens";
 
 /**
- * Forme des reglages globaux telle qu'on l'utilise.
+ * Shape of global settings as used here.
  *
- * On n'y stocke que des chaines, ce qui satisfait la contrainte `JsonObject` du
- * SDK sans avoir a manipuler ses types internes.
+ * Only strings are stored, which satisfies the SDK's `JsonObject` constraint
+ * without manipulating its internal types.
  */
 type GlobalSettings = Record<string, string>;
 
@@ -40,8 +40,8 @@ export class GlobalSettingsTokenStore implements TokenStore {
 	}
 
 	async save(tokens: TokenSet): Promise<void> {
-		// Lecture puis ecriture : `setGlobalSettings` remplace la cle fournie,
-		// mais d'autres cles du plugin peuvent exister.
+		// Read then write: `setGlobalSettings` replaces the provided key, but
+		// other plugin keys may exist.
 		const settings = await streamDeck.settings.getGlobalSettings<GlobalSettings>();
 		await streamDeck.settings.setGlobalSettings({
 			...settings,

@@ -1,14 +1,13 @@
 /**
- * Suivi du salon vocal courant.
+ * Tracks the current voice channel.
  *
- * On combine deux sources :
- *   - `GET_SELECTED_VOICE_CHANNEL` pour l'etat initial (liste des participants) ;
- *   - des souscriptions aux evenements pour les mises a jour instantanees,
- *     sans aucun polling.
+ * Two sources are combined:
+ *   - `GET_SELECTED_VOICE_CHANNEL` for the initial state (participant list);
+ *   - event subscriptions for instant updates, with no polling.
  *
- * Les souscriptions `VOICE_STATE_*` exigent un `channel_id`, donc on ne peut
- * souscrire qu'apres avoir recupere le salon, et il faut re-souscrire a chaque
- * changement de salon.
+ * `VOICE_STATE_*` subscriptions require a `channel_id`, so subscribing is only
+ * possible after fetching the channel, and every channel change requires a new
+ * subscription.
  */
 
 import { EventEmitter } from "node:events";
@@ -36,22 +35,21 @@ const SPEAKING_EVENTS = ["SPEAKING_START", "SPEAKING_STOP"] as const;
 const VOICE_CHANNEL_SELECT = "VOICE_CHANNEL_SELECT";
 
 /**
- * Duree pendant laquelle on ignore les departs apres un changement de salon.
+ * Time during which leaves are ignored after a channel change.
  *
- * Discord envoie un `VOICE_STATE_DELETE` pour l'ancien salon quand on en change.
- * Sans cette fenetre, chaque changement de salon ferait apparaitre un faux
- * popup "a quitte" pour des personnes qui n'ont pas bouge.
+ * Discord sends a `VOICE_STATE_DELETE` for the old channel when switching. Without
+ * this window, every channel change would show a false "left" popup for people
+ * who did not move.
  */
 const CHANNEL_TRANSITION_GRACE_MS = 1_500;
 
-// --- Helpers sur les objets Discord ------------------------------------------
+// --- Discord object helpers ---------------------------------------------------
 
 /**
- * Nom a afficher : surnom de serveur s'il existe, sinon nom global, sinon le
- * nom d'utilisateur.
+ * Display name: guild nickname if present, else global name, else username.
  *
- * Depuis que Discord a supprime les discriminants, `username` n'est plus unique
- * pour l'affichage : `global_name` est le bon choix par defaut.
+ * Since Discord removed discriminators, `username` is no longer unique for
+ * display: `global_name` is the right default.
  */
 export function displayName(user: RpcUser, nick?: string | null): string {
   const trimmedNick = nick?.trim();
@@ -64,19 +62,19 @@ export function displayName(user: RpcUser, nick?: string | null): string {
 }
 
 /**
- * Index de l'avatar par defaut, pour les comptes sans image.
+ * Default avatar index, for accounts without an image.
  *
- * Nouvelle formule (comptes recents) : `(id >> 22) % 6`.
+ * New formula (recent accounts): `(id >> 22) % 6`.
  */
 export function defaultAvatarIndex(userId: Snowflake): number {
   return Number((BigInt(userId) >> 22n) % 6n);
 }
 
 /**
- * URL CDN de l'avatar.
+ * Avatar CDN URL.
  *
- * On demande toujours du PNG : pour un avatar anime (`a_...`), le CDN renvoie
- * une image fixe, ce qui suffit pour un pixmap.
+ * Always request PNG: for an animated avatar (`a_...`), the CDN returns a
+ * still image, which is enough for a pixmap.
  */
 export function avatarUrl(user: Pick<RpcUser, "id" | "avatar">, size = 128): string {
   if (typeof user.avatar === "string" && user.avatar !== "") {
@@ -108,17 +106,17 @@ export function toParticipant(voiceState: RpcVoiceState, speaking = false): Part
 // --- Monitor -----------------------------------------------------------------
 
 export interface VoiceMonitorEvents {
-  /** La liste des participants a change. */
+  /** The participant list changed. */
   update: [participants: Participant[], channel: RpcChannel | null];
-  /** Quelqu'un a rejoint le salon. */
+  /** Someone joined the channel. */
   joined: [participant: Participant];
-  /** Quelqu'un a quitte le salon. */
+  /** Someone left the channel. */
   left: [participant: Participant];
-  /** Quelqu'un a commence a parler. */
+  /** Someone started speaking. */
   speaking: [participant: Participant];
-  /** Quelqu'un a arrete de parler. */
+  /** Someone stopped speaking. */
   stoppedSpeaking: [participant: Participant];
-  /** Le salon courant a change (ou on a quitte le vocal). */
+  /** The current channel changed (or voice was left). */
   channel: [channel: RpcChannel | null];
 }
 
@@ -144,7 +142,7 @@ export class VoiceMonitor extends EventEmitter<VoiceMonitorEvents> {
     return [...this.#participants.values()];
   }
 
-  /** Branche les evenements puis charge l'etat courant. */
+  /** Attaches events then loads the current state. */
   async start(): Promise<void> {
     if (!this.#listening) {
       this.#ipc.on("event", (message) => {
@@ -153,23 +151,22 @@ export class VoiceMonitor extends EventEmitter<VoiceMonitorEvents> {
       this.#listening = true;
     }
 
-    // `VOICE_CHANNEL_SELECT` ne depend PAS du salon courant, et doit donc etre
-    // souscrit ici, une fois pour toutes. Le souscrire en meme temps que les
-    // evenements du salon revenait a ne jamais l'ecouter quand le plugin
-    // demarrait hors vocal : il ne pouvait alors plus apprendre qu'on venait
-    // d'entrer dans un salon.
+    // `VOICE_CHANNEL_SELECT` does NOT depend on the current channel and must
+    // therefore be subscribed here, once and for all. Subscribing to it along
+    // with channel events meant never listening to it when the plugin started
+    // outside voice: it could then no longer learn that a channel was joined.
     await this.#trySubscribe(VOICE_CHANNEL_SELECT, undefined);
 
     await this.refresh();
   }
 
-  /** Relit l'etat du salon depuis Discord. */
+  /** Re-reads the channel state from Discord. */
   async refresh(): Promise<void> {
     const channel = await this.#ipc.call<RpcChannel | null>("GET_SELECTED_VOICE_CHANNEL");
     await this.#applyChannel(channel);
   }
 
-  /** Nom du serveur, pour l'affichage. Best-effort. */
+  /** Guild name, for display. Best-effort. */
   async guildName(channel: RpcChannel | null): Promise<string | null> {
     const guildId = channel?.guild_id;
     if (channel === null || guildId === null || guildId === undefined) return null;
@@ -178,7 +175,7 @@ export class VoiceMonitor extends EventEmitter<VoiceMonitorEvents> {
       const guild = await this.#ipc.call<RpcGuild>("GET_GUILD", { guild_id: guildId });
       return guild?.name ?? null;
     } catch (error) {
-      log.warn(`GET_GUILD a echoue : ${(error as Error).message}`);
+      log.warn(`GET_GUILD failed: ${(error as Error).message}`);
       return null;
     }
   }
@@ -191,16 +188,16 @@ export class VoiceMonitor extends EventEmitter<VoiceMonitorEvents> {
     const changed = nextId !== previousId;
 
     if (changed) {
-      // Une transition n'a de sens que si l'on quitte un salon auquel on etait
-      // abonne : c'est la seule situation ou Discord envoie des DELETE pour
-      // l'ancien salon.
+      // A transition only makes sense when leaving a channel we were subscribed
+      // to: that is the only case where Discord sends DELETE for the old
+      // channel.
       if (previousId !== null) this.#beginTransition();
       if (previousId !== null) await this.#unsubscribe(previousId);
     }
 
-    // On publie le nouvel etat AVANT de souscrire : pendant l'attente de la
-    // souscription, les messages entrants sont traites et publieraient sinon un
-    // roster encore vide, faisant clignoter l'affichage sur "Pas en vocal".
+    // Publish the new state BEFORE subscribing: while waiting for the
+    // subscription, incoming messages are processed and would otherwise
+    // publish an empty roster, making the display flicker to "Not in voice".
     this.#channel = channel;
     this.#subscribedChannelId = nextId;
     this.#rebuildParticipants(channel);
@@ -208,23 +205,23 @@ export class VoiceMonitor extends EventEmitter<VoiceMonitorEvents> {
     if (changed) this.emit("channel", channel);
     this.emit("update", this.participants, channel);
 
-    // Trace utile : sans elle, l'absence de souscription au salon ne se voyait
-    // nulle part dans le journal.
+    // Useful trace: without it, a missing channel subscription was invisible
+    // in the log.
     if (changed) {
       log.info(
         channel === null
-          ? "Hors vocal : aucun salon selectionne."
-          : `Salon courant : ${channel.name}`
+          ? "Not in voice: no channel selected."
+          : `Current channel: ${channel.name}`
       );
     }
 
     if (changed && nextId !== null) await this.#subscribe(nextId);
   }
 
-  /** Reconstruit le roster depuis la reponse de Discord. */
+  /** Rebuilds the roster from Discord's response. */
   #rebuildParticipants(channel: RpcChannel | null): void {
-    // On conserve l'etat "en train de parler" : il est porte par des evenements
-    // distincts de la liste des participants.
+    // Keep the "speaking" state: it is carried by events separate from the
+    // participant list.
     const speakingIds = new Set(
       [...this.#participants.values()].filter((p) => p.speaking).map((p) => p.id),
     );
@@ -238,10 +235,10 @@ export class VoiceMonitor extends EventEmitter<VoiceMonitorEvents> {
   }
 
   /**
-   * Marque le debut d'un changement de salon.
+   * Marks the start of a channel change.
    *
-   * Les `VOICE_STATE_DELETE` recus pendant cette fenetre concernent l'ancien
-   * salon : ce ne sont pas des departs, on les ignore.
+   * `VOICE_STATE_DELETE` events received during this window concern the old
+   * channel: they are not leaves, and are ignored.
    */
   #beginTransition(): void {
     this.#transitioning = true;
@@ -256,22 +253,22 @@ export class VoiceMonitor extends EventEmitter<VoiceMonitorEvents> {
   }
 
   /**
-   * Re-requete l'etat courant, une fois la transition passee.
+   * Re-requests the current state once the transition has passed.
    *
-   * Le roster est publie depuis un instantane pris AVANT la souscription aux
-   * evenements : un membre arrivant dans cet intervalle serait manque. Cette
-   * re-requete unique referme la fenetre.
+   * The roster is published from a snapshot taken BEFORE subscribing to events:
+   * a member joining in that interval would be missed. This single re-request
+   * closes the window.
    */
   async #settle(): Promise<void> {
     try {
       await this.refresh();
     } catch (error) {
-      log.warn(`Rafraichissement apres changement de salon impossible : ${(error as Error).message}`);
+      log.warn(`Cannot refresh after channel change: ${(error as Error).message}`);
     }
   }
 
   async #subscribe(channelId: Snowflake): Promise<void> {
-    log.info(`Souscription aux evenements du salon ${channelId}...`);
+    log.info(`Subscribing to channel ${channelId} events...`);
     const args = { channel_id: channelId };
 
     for (const evt of VOICE_STATE_EVENTS) {
@@ -279,8 +276,8 @@ export class VoiceMonitor extends EventEmitter<VoiceMonitorEvents> {
     }
 
     for (const evt of SPEAKING_EVENTS) {
-      // `channel_id` est optionnel pour les evenements de parole : en cas de
-      // refus, on retente sans argument.
+      // `channel_id` is optional for speaking events: on refusal, retry
+      // without arguments.
       const ok = await this.#trySubscribe(evt, args);
       if (!ok) await this.#trySubscribe(evt, undefined);
     }
@@ -292,7 +289,7 @@ export class VoiceMonitor extends EventEmitter<VoiceMonitorEvents> {
       try {
         await this.#ipc.unsubscribe(evt, args);
       } catch {
-        // Un evenement non souscrit renvoie une erreur : sans importance ici.
+        // An unsubscribed event returns an error: not important here.
       }
     }
   }
@@ -302,7 +299,7 @@ export class VoiceMonitor extends EventEmitter<VoiceMonitorEvents> {
       await this.#ipc.subscribe(evt, args);
       return true;
     } catch (error) {
-      log.warn(`Souscription ${evt} refusee : ${(error as Error).message}`);
+      log.warn(`Subscription ${evt} refused: ${(error as Error).message}`);
       return false;
     }
   }
@@ -336,9 +333,9 @@ export class VoiceMonitor extends EventEmitter<VoiceMonitorEvents> {
         const voiceState = extractVoiceState(message.data);
         if (voiceState === null) return;
 
-        // Pendant un changement de salon, les DELETE concernent l'ancien salon et
-        // le roster va etre reconstruit juste apres : les traiter viderait
-        // l'affichage un instant avant qu'il ne se remplisse a nouveau.
+        // During a channel change, DELETE events concern the old channel and
+        // the roster will be rebuilt right after: processing them would empty
+        // the display for an instant before it fills again.
         if (this.#transitioning) return;
 
         const participant = this.#participants.get(voiceState.user.id) ?? toParticipant(voiceState);
@@ -373,16 +370,16 @@ export class VoiceMonitor extends EventEmitter<VoiceMonitorEvents> {
       case VOICE_CHANNEL_SELECT: {
         const selection = message.data as VoiceChannelSelectEvent | undefined;
 
-        // Marque la transition des la reception de l'evenement, avant meme
-        // d'interroger Discord : les DELETE de l'ancien salon peuvent arriver
-        // pendant la requete. Un premier salon (aucun precedent) n'est pas une
-        // transition : il n'y a pas d'ancien salon dont les gens partiraient.
+        // Mark the transition as soon as the event is received, before even
+        // querying Discord: DELETE events for the old channel can arrive during
+        // the request. A first channel (no previous one) is not a transition:
+        // there is no old channel whose people would be leaving.
         if (this.#subscribedChannelId !== null) this.#beginTransition();
 
         log.info(
           selection?.channel_id === null || selection?.channel_id === undefined
-            ? "Tu as quitte le vocal."
-            : `Tu as rejoint un salon vocal (${selection.channel_id}).`,
+            ? "You left voice."
+            : `You joined a voice channel (${selection.channel_id}).`,
         );
         await this.refresh();
         return;
@@ -395,10 +392,10 @@ export class VoiceMonitor extends EventEmitter<VoiceMonitorEvents> {
 }
 
 /**
- * Recupere un etat vocal dans une charge utile d'evenement.
+ * Extracts a voice state from an event payload.
  *
- * Le client Discord enveloppe parfois ses objets (representation interne
- * camelCase) : on accepte les deux formes plutot que de casser.
+ * The Discord client sometimes wraps its objects (internal camelCase
+ * representation): both forms are accepted rather than breaking.
  */
 function extractVoiceState(data: unknown): RpcVoiceState | null {
   if (data === null || typeof data !== "object") return null;

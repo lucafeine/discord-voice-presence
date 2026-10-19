@@ -1,12 +1,12 @@
 /**
- * Client du protocole IPC local de Discord.
+ * Discord local IPC protocol client.
  *
- * Discord expose un serveur RPC sur un named pipe (`discord-ipc-0` a `-9`).
- * Le protocole est binaire : chaque message est precede d'un en-tete de
- * 8 octets (opcode + taille du corps, deux entiers 32 bits little endian),
- * le corps etant du JSON encode en UTF-8.
+ * Discord exposes an RPC server over a named pipe (`discord-ipc-0` to `-9`).
+ * The protocol is binary: each message is preceded by an 8-byte header
+ * (opcode + body length, two 32-bit little-endian integers), and the body is
+ * UTF-8 encoded JSON.
  *
- * Reference : https://docs.discord.food/topics/rpc
+ * Reference: https://docs.discord.food/topics/rpc
  */
 
 import net from "node:net";
@@ -15,7 +15,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { log } from "./log.js";
 
-// --- Opcodes -----------------------------------------------------------------
+// --- Opcodes ------------------------------------------------------------------
 const OP_HANDSHAKE = 0;
 const OP_FRAME = 1;
 const OP_CLOSE = 2;
@@ -27,13 +27,13 @@ const DEFAULT_TIMEOUT_MS = 15_000;
 const PIPE_CONNECT_TIMEOUT_MS = 2_000;
 const HANDSHAKE_TIMEOUT_MS = 10_000;
 
-// --- Types -------------------------------------------------------------------
+// --- Types --------------------------------------------------------------------
 
 export class RpcError extends Error {
   readonly code: number;
 
   constructor(code: number, message: string) {
-    super(`RPC ${code} : ${message}`);
+    super(`RPC ${code}: ${message}`);
     this.name = "RpcError";
     this.code = code;
   }
@@ -52,7 +52,7 @@ export interface ReadyPayload {
   user: unknown;
 }
 
-/** Utilisateur courant, tel que fourni par READY. */
+/** Current user, as provided by READY. */
 export interface SelfUser {
   id: string;
   username: string;
@@ -61,17 +61,17 @@ export interface SelfUser {
 }
 
 export interface DiscordIpcEvents {
-  /** Les evenements `DISPATCH` et `SUBSCRIBE` du client (READY inclus). */
+  /** Client `DISPATCH` and `SUBSCRIBE` events, including READY. */
   event: [message: IpcMessage];
-  /** Le socket a ete ferme, proprement ou non. */
+  /** The socket was closed, cleanly or not. */
   close: [reason: string];
-  /** Erreur non fatale du socket. */
+  /** Non-fatal socket error. */
   error: [error: Error];
 }
 
 export interface DiscordIpcOptions {
   clientId: string;
-  /** Delai maximal d'attente d'une reponse RPC, en millisecondes. */
+  /** Maximum wait for an RPC response, in milliseconds. */
   timeoutMs?: number;
 }
 
@@ -81,11 +81,11 @@ interface Pending {
   timer: NodeJS.Timeout;
 }
 
-// --- Resolution du pipe ------------------------------------------------------
+// --- Pipe resolution ----------------------------------------------------------
 
 function pipeCandidates(): string[] {
   if (process.platform === "win32") {
-    // En JS, "\\\\.\\pipe\\x" donne `\\.\pipe\x`.
+    // In JS, "\\\\.\\pipe\\x" yields `\\.\pipe\x`.
     return Array.from({ length: PIPE_COUNT }, (_, i) => `\\\\.\\pipe\\discord-ipc-${i}`);
   }
   const base =
@@ -98,12 +98,12 @@ function pipeCandidates(): string[] {
 }
 
 /**
- * Tente une connexion et resout avec le socket ouvert.
+ * Attempts a connection and resolves with the open socket.
  *
- * On connecte directement plutot que de sonder puis reconnecter : le RPC
- * Discord limite a 2 connexions par minute, donc chaque connexion doit servir.
- * Un pipe inexistant echoue immediatement (ENOENT) sans jamais atteindre
- * Discord, et ne consomme donc pas ce quota.
+ * We connect directly instead of probing then reconnecting: the Discord RPC
+ * allows only 2 connections per minute, so every connection must count. A
+ * missing pipe fails immediately (ENOENT) without ever reaching Discord, and
+ * therefore does not consume that quota.
  */
 function tryConnect(pipePath: string, timeoutMs: number): Promise<net.Socket> {
   return new Promise((resolve, reject) => {
@@ -125,7 +125,7 @@ function tryConnect(pipePath: string, timeoutMs: number): Promise<net.Socket> {
     };
 
     const timer = setTimeout(
-      () => finish(new Error(`Delai de connexion depasse (${timeoutMs} ms)`)),
+      () => finish(new Error(`Connection timed out (${timeoutMs} ms)`)),
       timeoutMs,
     );
     timer.unref();
@@ -161,16 +161,16 @@ export class DiscordIpc extends EventEmitter<DiscordIpcEvents> {
   }
 
   /**
-   * Charge utile de l'evenement READY.
+   * READY event payload.
    *
-   * READY arrive pendant `connect()` et serait donc manque par un ecouteur
-   * branche apres : on le conserve ici.
+   * READY arrives during `connect()` and would therefore be missed by a
+   * listener attached afterwards, so it is kept here.
    */
   get readyPayload(): ReadyPayload | null {
     return this.#readyPayload;
   }
 
-  /** Utilisateur Discord de la session en cours. */
+  /** Discord user of the current session. */
   get selfUser(): SelfUser | null {
     const user = this.#readyPayload?.user;
     if (user === null || typeof user !== "object") return null;
@@ -191,13 +191,13 @@ export class DiscordIpc extends EventEmitter<DiscordIpcEvents> {
   }
 
   /**
-   * Ouvre le premier pipe joignable, envoie le handshake et attend READY.
+   * Opens the first reachable pipe, sends the handshake, and waits for READY.
    *
-   * Une seule connexion est ouverte au total, pour menager le quota du RPC.
+   * Only one connection is opened at a time to preserve the RPC quota.
    */
   async connect(): Promise<void> {
     const socket = await this.#openFirstPipe();
-    log.info(`pipe Discord : ${this.#pipePath}`);
+    log.info(`Discord pipe: ${this.#pipePath}`);
 
     this.#socket = socket;
     this.#buffer = Buffer.alloc(0);
@@ -207,21 +207,21 @@ export class DiscordIpc extends EventEmitter<DiscordIpcEvents> {
       const timer = setTimeout(() => {
         this.#readySettle = null;
 
-        // Sans cette fermeture, le socket reste ouvert : il continuerait de
-        // compter dans le quota de connexions de Discord (2 par minute), et
-        // chaque tentative ratee rendrait la suivante plus difficile. Les
-        // ecouteurs sont retires avant, pour ne pas declencher l'evenement
-        // "close" et republier une fermeture.
+        // Without this close, the socket stays open: it would keep counting
+        // against Discord's connection quota (2 per minute), and every failed
+        // attempt would make the next one harder. Listeners are removed first
+        // so the "close" event is not emitted and a closure is not published
+        // again.
         socket.removeAllListeners();
         socket.destroy();
         this.#socket = null;
 
-        reject(new Error(`Pas de reponse READY apres ${HANDSHAKE_TIMEOUT_MS} ms.`));
+        reject(new Error(`No READY response after ${HANDSHAKE_TIMEOUT_MS} ms.`));
       }, HANDSHAKE_TIMEOUT_MS);
       timer.unref();
 
       socket.on("error", (error) => this.emit("error", error));
-      socket.on("close", () => this.#handleClose("socket ferme"));
+      socket.on("close", () => this.#handleClose("socket closed"));
       socket.on("data", (chunk: Buffer) => this.#onData(chunk));
 
       this.#ready = new Promise<void>((readyResolve, readyReject) => {
@@ -251,21 +251,21 @@ export class DiscordIpc extends EventEmitter<DiscordIpcEvents> {
         this.#pipePath = candidate;
         return socket;
       } catch {
-        // Pipe absent : on passe au suivant.
+        // Missing pipe: try the next one.
       }
     }
 
     throw new Error(
-      "Aucun pipe Discord joignable (discord-ipc-0 a -9). " +
-        "Verifie que le client Discord est lance et connecte a un compte.",
+      "No Discord pipe reachable (discord-ipc-0 to -9). " +
+        "Check that the Discord client is running and signed in.",
     );
   }
 
   /**
-   * Envoie une commande RPC et resout avec son champ `data`.
+   * Sends an RPC command and resolves with its `data` field.
    *
-   * `timeoutMs` permet de laisser plus de temps aux commandes qui attendent une
-   * action de l'utilisateur, comme AUTHORIZE (fenetre de consentement).
+   * `timeoutMs` allows extra time for commands that wait for user action, such
+   * as AUTHORIZE (consent window).
    */
   call<T = unknown>(
     cmd: string,
@@ -276,10 +276,10 @@ export class DiscordIpc extends EventEmitter<DiscordIpcEvents> {
   }
 
   /**
-   * Souscrit a un evenement.
+   * Subscribes to an event.
    *
-   * Le nom de l'evenement va dans le champ `evt` de la charge utile, pas dans
-   * `args` (voir la structure des paquets sortants du protocole).
+   * The event name goes in the payload's `evt` field, not in `args` (see the
+   * outgoing packet structure of the protocol).
    */
   subscribe(evt: string, args?: Record<string, unknown>): Promise<unknown> {
     return this.#request({ cmd: "SUBSCRIBE", args, evt });
@@ -289,24 +289,24 @@ export class DiscordIpc extends EventEmitter<DiscordIpcEvents> {
     return this.#request({ cmd: "UNSUBSCRIBE", args, evt });
   }
 
-  /** Ferme proprement la connexion. */
+  /** Closes the connection cleanly. */
   close(): void {
     this.#closing = true;
     const socket = this.#socket;
     if (socket === null) return;
 
     try {
-      this.#writeFrame(OP_CLOSE, { code: 1000, message: "Fermeture volontaire" });
+      this.#writeFrame(OP_CLOSE, { code: 1000, message: "Intentional close" });
     } catch {
-      // Le socket est peut-etre deja mort : on ignore.
+      // The socket may already be dead: ignore.
     }
 
     socket.end();
     socket.destroy();
-    this.#handleClose("fermeture volontaire");
+    this.#handleClose("intentional close");
   }
 
-  // --- Interne ---------------------------------------------------------------
+  // --- Internal ---------------------------------------------------------------
 
   #request<T>(payload: Record<string, unknown>, timeoutMs?: number): Promise<T> {
     const nonce = randomUUID();
@@ -315,7 +315,7 @@ export class DiscordIpc extends EventEmitter<DiscordIpcEvents> {
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.#pending.delete(nonce);
-        reject(new Error(`Delai depasse (${timeout} ms) pour ${String(payload["cmd"])}`));
+        reject(new Error(`Timed out (${timeout} ms) for ${String(payload["cmd"])}`));
       }, timeout);
       timer.unref();
 
@@ -338,7 +338,7 @@ export class DiscordIpc extends EventEmitter<DiscordIpcEvents> {
   #writeRaw(op: number, body: Buffer): void {
     const socket = this.#socket;
     if (socket === null || socket.destroyed) {
-      throw new Error("Le client IPC Discord n'est pas connecte.");
+      throw new Error("The Discord IPC client is not connected.");
     }
 
     const header = Buffer.alloc(8);
@@ -368,12 +368,12 @@ export class DiscordIpc extends EventEmitter<DiscordIpcEvents> {
     }
 
     if (op === OP_CLOSE) {
-      this.#handleClose("le client Discord a demande la fermeture");
+      this.#handleClose("the Discord client requested the close");
       return;
     }
 
     if (op !== OP_FRAME) {
-      log.warn(`opcode IPC inattendu : ${op}`);
+      log.warn(`Unexpected IPC opcode: ${op}`);
       return;
     }
 
@@ -381,7 +381,7 @@ export class DiscordIpc extends EventEmitter<DiscordIpcEvents> {
     try {
       message = JSON.parse(body.toString("utf8")) as IpcMessage;
     } catch {
-      log.warn("trame JSON illisible, ignoree");
+      log.warn("Unreadable JSON frame, ignored");
       return;
     }
 
@@ -394,7 +394,7 @@ export class DiscordIpc extends EventEmitter<DiscordIpcEvents> {
 
         if (message.evt === "ERROR") {
           const data = message.data as { code?: number; message?: string } | undefined;
-          pending.reject(new RpcError(data?.code ?? 1000, data?.message ?? "erreur inconnue"));
+          pending.reject(new RpcError(data?.code ?? 1000, data?.message ?? "unknown error"));
         } else {
           pending.resolve(message.data);
         }
@@ -420,9 +420,9 @@ export class DiscordIpc extends EventEmitter<DiscordIpcEvents> {
     const ready = this.#readySettle;
     this.#readySettle = null;
     this.#ready = null;
-    ready?.reject(new Error(`Connexion fermee avant READY (${reason}).`));
+    ready?.reject(new Error(`Connection closed before READY (${reason}).`));
 
-    const error = new Error(`Connexion IPC Discord fermee : ${reason}`);
+    const error = new Error(`Discord IPC connection closed: ${reason}`);
     for (const pending of this.#pending.values()) {
       clearTimeout(pending.timer);
       pending.reject(error);

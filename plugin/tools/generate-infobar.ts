@@ -1,15 +1,14 @@
 /**
- * Genere les assets fixes et le layout de l'Infobar.
+ * Generates the fixed Infobar assets and layout.
  *
- * La geometrie et la fabrique d'assets vivent dans src/infobar/theme.ts, partage
- * avec le plugin : c'est lui qui reecrit la carte et les cadres quand
- * l'utilisateur change la couleur de fond. Si les deux divergeaient, les avatars
- * seraient decoupes de travers.
+ * Geometry and the asset factory live in src/infobar/theme.ts, shared with the
+ * plugin: the plugin rewrites the card and frames when the user changes the
+ * background color. If the two diverged, avatars would be clipped incorrectly.
  *
- * Ecrit en TypeScript et lance directement par Node, qui se contente de retirer
- * les types : pas de build intermediaire pour un script de developpement.
+ * Written in TypeScript and run directly by Node, which strips types: no
+ * intermediate build for a development script.
  *
- * Usage : npm run assets
+ * Usage: npm run assets
  */
 
 import fs from "node:fs";
@@ -267,13 +266,13 @@ function layout(): object {
 fs.mkdirSync(assetsDir, { recursive: true });
 fs.mkdirSync(layoutsDir, { recursive: true });
 
-// Theme par defaut, pour que le layout soit correct avant meme que l'action
-// n'envoie quoi que ce soit.
+// Default theme, so the layout is correct even before the action sends
+// anything.
 for (const asset of themeAssets(DEFAULT_BACKGROUND)) {
 	write(asset.path, asset.svg);
 }
 
-// Assets independants de la couleur de fond.
+// Assets independent of the background color.
 write("imgs/infobar/badge-mute.svg", badgeSvg("mute"));
 write("imgs/infobar/badge-deafen.svg", badgeSvg("deafen"));
 write("imgs/infobar/alert-bg.svg", alertBackgroundSvg());
@@ -282,8 +281,8 @@ write("imgs/infobar/flash-bar.svg", flashBarSvg());
 
 for (const [kind, color] of Object.entries(ALERT_ACCENTS)) {
 	write(`imgs/infobar/accent-${kind}.svg`, accentSvg(color));
-	// Cadre assorti a l'aplat : sans lui, la couverture des coins de l'avatar
-	// resterait de la couleur de la carte et dessinerait un carre sur l'alerte.
+	// Frame matching the overlay: without it, the avatar corner cover would stay
+	// the card color and draw a square on the alert.
 	write(`imgs/infobar/frame-${kind}.svg`, frameSvg(color));
 }
 
@@ -292,9 +291,9 @@ for (const [kind, color] of Object.entries(CUT_COLORS)) {
 	write(`imgs/infobar/flash-icon-${kind}.svg`, flashIconSvg(kind));
 }
 
-// Menage : la carte et les cadres sont passes dans theme/, et les coupures ne
-// produisent plus d'annonce. Laisser trainer des assets qui ne correspondent plus
-// au comportement est le meilleur moyen de se tromper plus tard.
+// Cleanup: the card and frames moved to theme/, and cuts no longer produce an
+// announcement. Leaving stale assets that no longer match the behavior is the
+// best way to get confused later.
 for (const stale of [
 	"card.svg",
 	"frame.svg",
@@ -315,17 +314,17 @@ const output = layout();
 write("layouts/voice-presence.json", `${JSON.stringify(output, null, "\t")}\n`);
 
 /**
- * Controle de validite du layout.
+ * Layout validity check.
  *
- * Deux regles qu'Elgato ne verifie PAS dans `streamdeck validate`, et dont la
- * violation ne produit aucun message : le layout est simplement rejete et plus
- * rien ne s'affiche sur l'Infobar.
+ * Two rules Elgato does NOT check in `streamdeck validate`, whose violation
+ * produces no message: the layout is simply rejected and nothing appears on the
+ * Infobar.
  */
 function assertLayoutIsRenderable(items: readonly LayoutItem[]): void {
 	for (const item of items) {
 		const [x, y, w, h] = item.rect;
 		if (x < 0 || y < 0 || x + w > WIDTH || y + h > HEIGHT) {
-			throw new Error(`${item.key} sort des bornes : ${JSON.stringify(item.rect)}`);
+			throw new Error(`${item.key} is out of bounds: ${JSON.stringify(item.rect)}`);
 		}
 	}
 
@@ -337,8 +336,8 @@ function assertLayoutIsRenderable(items: readonly LayoutItem[]): void {
 			if (!overlaps(first.rect, second.rect)) continue;
 
 			throw new Error(
-				`${first.key} et ${second.key} se chevauchent au meme zOrder ${first.zOrder} : ` +
-					"le layout entier ne serait pas rendu."
+				`${first.key} and ${second.key} overlap at the same zOrder ${first.zOrder}: ` +
+					"the whole layout would not render."
 			);
 		}
 	}
@@ -358,9 +357,9 @@ function overlaps(
 assertLayoutIsRenderable((output as { items: LayoutItem[] }).items);
 
 const itemCount = (output as { items: unknown[] }).items.length;
-console.log("assets ecrits dans imgs/infobar/");
-console.log(`layout ecrit : ${itemCount} items`);
-console.log(`avatar ${AVATAR} px, cadre ${CIRCLE} px, anneau ${RING_WIDTH} px, pitch ${PITCH}`);
-console.log(`grille : ${GRID_SLOTS} positions tous les ${GRID_STEP} px, depart x=${slotX(0)}`);
-console.log(`defilement a partir de ${VISIBLE_SLOTS + 1} participants, fenetre de ${VISIBLE_SLOTS}`);
-console.log(`theme par defaut : ${DEFAULT_BACKGROUND}`);
+console.log("assets written to imgs/infobar/");
+console.log(`layout written: ${itemCount} items`);
+console.log(`avatar ${AVATAR} px, frame ${CIRCLE} px, ring ${RING_WIDTH} px, pitch ${PITCH}`);
+console.log(`grid: ${GRID_SLOTS} positions every ${GRID_STEP} px, start x=${slotX(0)}`);
+console.log(`scrolling from ${VISIBLE_SLOTS + 1} participants, window of ${VISIBLE_SLOTS}`);
+console.log(`default theme: ${DEFAULT_BACKGROUND}`);

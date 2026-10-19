@@ -1,12 +1,12 @@
 /**
- * Avatars pour l'Infobar.
+ * Avatars for the Infobar.
  *
- * Le moteur de layouts accepte, pour un item `pixmap`, une chaine base64 en plus
- * d'un fichier local : on lui passe donc directement des data URI. Aucun fichier
- * n'est ecrit, et le plugin ne depend pas de son propre dossier d'installation.
+ * The layout engine accepts a base64 string for a `pixmap` item in addition to a
+ * local file, so data URIs are passed directly. No file is written, and the
+ * plugin does not depend on its own installation folder.
  *
- * `GET_IMAGE` du RPC local est privilegie : aucun appel reseau, et l'image est
- * exactement celle que le client Discord affiche. Le CDN n'est qu'un secours.
+ * The local RPC `GET_IMAGE` is preferred: no network call, and the image is
+ * exactly what the Discord client displays. The CDN is only a fallback.
  */
 
 import type { DiscordIpc } from "./ipc.js";
@@ -14,10 +14,10 @@ import { log } from "./log.js";
 import type { RpcImage, Snowflake } from "./types.js";
 import { avatarUrl } from "./voice.js";
 
-/** Puissance de deux comprise entre 16 et 1024, comme l'exige l'API. */
+/** Power of two between 16 and 1024, as required by the API. */
 const SIZE = 128;
 
-/** Delai maximal du repli CDN : le seul appel reseau du plugin. */
+/** Maximum CDN fallback delay: the plugin's only network call. */
 const CDN_TIMEOUT_MS = 10_000;
 
 export class AvatarCache {
@@ -29,10 +29,10 @@ export class AvatarCache {
 	}
 
 	/**
-	 * Renvoie un data URI PNG, ou `null` si l'avatar est introuvable.
+	 * Returns a PNG data URI, or `null` if the avatar cannot be found.
 	 *
-	 * Le hash fait partie de la cle : changer d'avatar donne une nouvelle entree
-	 * plutot qu'une image perimee.
+	 * The hash is part of the key: changing avatar creates a new entry rather
+	 * than serving a stale image.
 	 */
 	async get(userId: Snowflake, avatarHash: string | null): Promise<string | null> {
 		const key = `${userId}-${avatarHash ?? "default"}`;
@@ -59,7 +59,7 @@ export class AvatarCache {
 			});
 			return typeof image?.data_url === "string" ? image.data_url : null;
 		} catch (error) {
-			log.warn(`GET_IMAGE a echoue pour ${userId} : ${(error as Error).message}`);
+			log.warn(`GET_IMAGE failed for ${userId}: ${(error as Error).message}`);
 			return null;
 		}
 	}
@@ -70,13 +70,13 @@ export class AvatarCache {
 				signal: AbortSignal.timeout(CDN_TIMEOUT_MS)
 			});
 			if (!response.ok) {
-				log.warn(`CDN a repondu ${response.status} pour ${userId}.`);
+				log.warn(`CDN responded ${response.status} for ${userId}.`);
 				return null;
 			}
 			const buffer = Buffer.from(await response.arrayBuffer());
 			return `data:image/png;base64,${buffer.toString("base64")}`;
 		} catch (error) {
-			log.warn(`Telechargement de l'avatar ${userId} impossible : ${(error as Error).message}`);
+			log.warn(`Cannot download avatar ${userId}: ${(error as Error).message}`);
 			return null;
 		}
 	}

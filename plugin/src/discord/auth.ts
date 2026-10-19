@@ -1,41 +1,41 @@
 /**
- * Flux d'autorisation OAuth2 du RPC Discord.
+ * Discord RPC OAuth2 authorization flow.
  *
- * Pourquoi c'est indispensable : sans autorisation, le client Discord n'expose
- * que les commandes `rpc.local` (profil de l'utilisateur courant). Toutes les
- * commandes relatives au vocal renvoient `RPC 4006 Not authenticated or invalid
- * scope`. Une autorisation unique (scope `rpc`) debloque l'ensemble.
+ * Why it is required: without authorization, the Discord client exposes only
+ * the `rpc.local` commands (the current user's profile). Every voice-related
+ * command returns `RPC 4006 Not authenticated or invalid scope`. A single
+ * authorization with the `rpc` scope unlocks the full set.
  *
- * ## PKCE, sans aucun secret
+ * ## PKCE, without any secret
  *
- * Le plugin n'embarque ni ne stocke de `client_secret` : le flux utilise PKCE
- * (S256) avec le seul `client_id`, qui est public par nature.
+ * The plugin neither embeds nor stores a `client_secret`: the flow uses PKCE
+ * (S256) with the `client_id` alone, which is public by nature.
  *
- * Cela impose UNE case a cocher dans le portail developpeur :
+ * This requires ONE checkbox in the developer portal:
  *
- *   ton application -> OAuth2 -> Public Client -> active -> Save Changes
+ *   your application -> OAuth2 -> Public Client -> enable -> Save Changes
  *
- * Sans elle, l'echange du code repond `HTTP 401 invalid_client`, ce qui ressemble
- * a tort a une incompatibilite du flux RPC. C'est le principal piege de cette
+ * Without it, the code exchange returns `HTTP 401 invalid_client`, which looks
+ * like an RPC flow incompatibility but is not. It is the main pitfall of this
  * configuration.
  *
- * ## Le redirect_uri doit etre enregistre, mais jamais envoye
+ * ## The redirect_uri must be registered, but never sent
  *
- * Le flux OAuth2 du RPC refuse tout `redirect_uri` dans la requete AUTHORIZE
- * ("Redirect URI cannot be used in the RPC OAuth2 Authorization flow"), tout en
- * exigeant qu'une URI soit enregistree sur l'application pour avoir une valeur
- * par defaut (sinon : "Missing redirect_uri in request"). A configurer une seule
- * fois : OAuth2 -> Redirects -> une URI quelconque, en premiere position.
+ * The RPC OAuth2 flow rejects any `redirect_uri` in the AUTHORIZE request
+ * ("Redirect URI cannot be used in the RPC OAuth2 Authorization flow") while
+ * requiring one to be registered on the application so Discord can use a
+ * default value (otherwise: "Missing redirect_uri in request"). Configure it
+ * once: OAuth2 -> Redirects -> any URI, in first position.
  *
- * ## Ordre des operations
+ * ## Order of operations
  *
- *   AUTHORIZE -> code -> echange PKCE -> access_token -> AUTHENTICATE
+ *   AUTHORIZE -> code -> PKCE exchange -> access_token -> AUTHENTICATE
  *
- * Selon les cas, Discord authentifie deja la connexion au moment de l'accord :
- * AUTHENTICATE renvoie alors `RPC 4002 Already authenticated`, ce qui n'est pas
- * une erreur.
+ * Depending on the case, Discord may already authenticate the connection when
+ * the user approves: AUTHENTICATE then returns `RPC 4002 Already authenticated`,
+ * which is not an error.
  *
- * Reference : https://docs.discord.food/topics/oauth2
+ * Reference: https://docs.discord.food/topics/oauth2
  */
 
 import crypto from "node:crypto";
@@ -44,10 +44,10 @@ import type { DiscordIpc } from "./ipc.js";
 
 const TOKEN_URL = "https://discord.com/api/oauth2/token";
 
-/** Duree laissee a l'utilisateur pour accepter la demande dans Discord. */
+/** Time left to the user to accept the request in Discord. */
 const AUTHORIZE_TIMEOUT_MS = 180_000;
 
-/** Marge avant expiration : on rafraichit un peu avant l'echeance reelle. */
+/** Margin before expiry: refresh slightly before the real deadline. */
 const EXPIRY_MARGIN_MS = 60_000;
 
 export interface TokenSet {
@@ -55,7 +55,7 @@ export interface TokenSet {
   refresh_token: string;
   token_type: string;
   scope: string;
-  /** Date d'expiration, en millisecondes epoch. */
+  /** Expiry date, as epoch milliseconds. */
   expires_at: number;
 }
 
@@ -74,16 +74,15 @@ export interface AuthOptions {
 }
 
 /**
- * Ou sont conserves les jetons.
+ * Where tokens are stored.
  *
- * Le prototype ecrivait un fichier ; le plugin passe par les reglages globaux de
- * Stream Deck. L'abstraction evite que la logique d'autorisation connaisse
- * l'un ou l'autre.
+ * The prototype wrote a file; the plugin uses Stream Deck global settings. The
+ * abstraction keeps the authorization logic independent of either mechanism.
  */
 export interface TokenStore {
   load(): Promise<TokenSet | null>;
   save(tokens: TokenSet): Promise<void>;
-  /** Efface l'autorisation enregistree, pour en reclamer une nouvelle. */
+  /** Clears the stored authorization so a new one can be requested. */
   clear(): Promise<void>;
 }
 
@@ -110,7 +109,7 @@ async function requestToken(body: URLSearchParams): Promise<TokenSet> {
 
   const text = await response.text();
   if (!response.ok) {
-    throw new Error(`Echange de token refuse (HTTP ${response.status}) : ${text}`);
+    throw new Error(`Token exchange failed (HTTP ${response.status}): ${text}`);
   }
 
   const payload = JSON.parse(text) as TokenEndpointResponse;
@@ -126,11 +125,10 @@ async function requestToken(body: URLSearchParams): Promise<TokenSet> {
 // --- Flux complet ------------------------------------------------------------
 
 /**
- * Transforme les erreurs opaques de Discord en consignes exploitables.
+ * Turns opaque Discord errors into actionable instructions.
  *
- * Les deux echecs courants de cette configuration sont `invalid_client`
- * (Public Client non active) et `Missing redirect_uri` (aucune URI de
- * redirection enregistree).
+ * The two common failures in this configuration are `invalid_client` (Public
+ * Client not enabled) and `Missing redirect_uri` (no redirect URI registered).
  */
 function explainAuthorizeFailure(error: unknown, clientId: string): string {
   const message = error instanceof Error ? error.message : String(error);
@@ -139,14 +137,14 @@ function explainAuthorizeFailure(error: unknown, clientId: string): string {
     return [
       message,
       "",
-      "Le flux OAuth2 du RPC Discord n'accepte aucun redirect_uri dans la requete,",
-      "mais exige qu'une URI soit ENREGISTREE sur l'application (Discord utilise la",
-      "premiere de la liste par defaut).",
+      "The Discord RPC OAuth2 flow does not accept a redirect_uri in the request,",
+      "but it requires a URI to be REGISTERED on the application (Discord uses the",
+      "first one in the list by default).",
       "",
-      "A faire une seule fois, dans le portail developpeur :",
-      "  1. ton application -> OAuth2 -> Redirects",
-      "  2. ajoute une URI, par exemple : http://localhost",
-      "  3. place-la en PREMIERE position, puis Save Changes",
+      "Do this once in the developer portal:",
+      "  1. your application -> OAuth2 -> Redirects",
+      "  2. add a URI, for example: http://localhost",
+      "  3. move it to the FIRST position, then Save Changes",
       `      https://discord.com/developers/applications/${clientId}/oauth2`,
     ].join("\n");
   }
@@ -155,17 +153,17 @@ function explainAuthorizeFailure(error: unknown, clientId: string): string {
 }
 
 /**
- * Demande l'autorisation a l'utilisateur, puis echange le code en PKCE.
+ * Asks the user for authorization, then exchanges the code with PKCE.
  *
- * Discord affiche une fenetre de consentement : cette fonction attend que
- * l'utilisateur valide.
+ * Discord displays a consent window: this function waits for the user to
+ * approve it.
  */
 export async function authorize(ipc: DiscordIpc, options: AuthOptions): Promise<TokenSet> {
   const pkce = createPkcePair();
 
-  log.info(`Scopes demandes : ${options.scopes.join(", ")}`);
-  log.info("Flux PKCE (S256) : aucun client_secret n'est utilise.");
-  log.warn("Une fenetre d'autorisation va s'ouvrir dans Discord : accepte-la pour continuer.");
+  log.info(`Requested scopes: ${options.scopes.join(", ")}`);
+  log.info("PKCE flow (S256): no client_secret is used.");
+  log.warn("An authorization window will open in Discord: accept it to continue.");
 
   let code: string;
   try {
@@ -181,14 +179,14 @@ export async function authorize(ipc: DiscordIpc, options: AuthOptions): Promise<
     );
 
     if (typeof result?.code !== "string") {
-      throw new Error(`Reponse AUTHORIZE inattendue : ${JSON.stringify(result)}`);
+      throw new Error(`Unexpected AUTHORIZE response: ${JSON.stringify(result)}`);
     }
     code = result.code;
   } catch (error) {
     throw new Error(explainAuthorizeFailure(error, options.clientId));
   }
 
-  log.ok("Code d'autorisation obtenu.");
+  log.ok("Authorization code received.");
 
   let tokens: TokenSet;
   try {
@@ -207,27 +205,27 @@ export async function authorize(ipc: DiscordIpc, options: AuthOptions): Promise<
         [
           message,
           "",
-          "L'application n'accepte pas les clients publics. A activer une seule fois :",
-          "  ton application -> OAuth2 -> Public Client -> active -> Save Changes",
+          "The application does not accept public clients. Enable this once:",
+          "  your application -> OAuth2 -> Public Client -> enable -> Save Changes",
           `  https://discord.com/developers/applications/${options.clientId}/oauth2`,
           "",
-          "C'est ce reglage qui autorise PKCE, donc l'absence de client_secret.",
+          "This setting is what allows PKCE, and therefore the absence of a client_secret.",
         ].join("\n"),
       );
     }
     throw error;
   }
 
-  log.ok(`Autorisation accordee (scopes : ${tokens.scope}).`);
+  log.ok(`Authorization granted (scopes: ${tokens.scope}).`);
   return tokens;
 }
 
-/** Renouvelle un token arrive a expiration. Pas de secret ici non plus. */
+/** Refreshes an expired token. No secret here either. */
 export async function refresh(
   tokens: TokenSet,
   options: Pick<AuthOptions, "clientId">,
 ): Promise<TokenSet> {
-  log.info("Rafraichissement du token...");
+  log.info("Refreshing token...");
   const refreshed = await requestToken(
     new URLSearchParams({
       grant_type: "refresh_token",
@@ -235,15 +233,15 @@ export async function refresh(
       client_id: options.clientId,
     }),
   );
-  log.ok("Token rafraichi.");
+  log.ok("Token refreshed.");
   return refreshed;
 }
 
 /**
- * Associe la connexion IPC au token d'acces.
+ * Associates the IPC connection with the access token.
  *
- * `RPC 4002 Already authenticated` signifie que le flux d'autorisation a deja
- * authentifie la connexion : ce n'est pas un echec.
+ * `RPC 4002 Already authenticated` means the authorization flow already
+ * authenticated the connection: this is not a failure.
  */
 export async function authenticate(ipc: DiscordIpc, accessToken: string): Promise<string> {
   const result = await ipc.call<{ scopes?: string[] }>("AUTHENTICATE", {
@@ -261,23 +259,23 @@ export function isExpired(tokens: TokenSet): boolean {
   return Date.now() >= tokens.expires_at - EXPIRY_MARGIN_MS;
 }
 
-// --- Persistance -------------------------------------------------------------
+// --- Persistence -------------------------------------------------------------
 
-/** Verifie qu'un objet lu depuis les reglages ressemble a des jetons valides. */
+/** Checks that an object read from settings looks like a valid token set. */
 export function isTokenSet(value: unknown): value is TokenSet {
   if (value === null || typeof value !== "object") return false;
   const candidate = value as Partial<TokenSet>;
   return typeof candidate.access_token === "string" && typeof candidate.refresh_token === "string";
 }
 
-/** Authentifie la connexion, en tolerant le cas deja authentifie. */
+/** Authenticates the connection, tolerating the already-authenticated case. */
 export async function applyToken(ipc: DiscordIpc, tokens: TokenSet): Promise<void> {
   try {
     const scopes = await authenticate(ipc, tokens.access_token);
-    log.ok(`Connecte au RPC Discord (scopes : ${scopes}).`);
+    log.ok(`Connected to the Discord RPC (scopes: ${scopes}).`);
   } catch (error) {
     if (isAlreadyAuthenticated(error)) {
-      log.ok("Connexion deja authentifiee par l'autorisation.");
+      log.ok("Connection already authenticated by the authorization.");
       return;
     }
     throw error;
@@ -285,8 +283,8 @@ export async function applyToken(ipc: DiscordIpc, tokens: TokenSet): Promise<voi
 }
 
 /**
- * Garantit une connexion IPC autorisee : reutilise le token stocke, le
- * rafraichit si besoin, sinon lance le consentement.
+ * Ensures an authorized IPC connection: reuses the stored token, refreshes it
+ * when needed, otherwise starts the consent flow.
  */
 export async function ensureAuthenticated(
   ipc: DiscordIpc,
@@ -301,8 +299,8 @@ export async function ensureAuthenticated(
         tokens = await refresh(tokens, options);
         await store.save(tokens);
       } catch (error) {
-        log.warn(`Rafraichissement impossible : ${(error as Error).message}`);
-        log.warn("Nouvelle autorisation necessaire.");
+        log.warn(`Refresh failed: ${(error as Error).message}`);
+        log.warn("A new authorization is required.");
         tokens = null;
       }
     }
@@ -312,7 +310,7 @@ export async function ensureAuthenticated(
         await applyToken(ipc, tokens);
         return tokens;
       } catch (error) {
-        log.warn(`Token refuse : ${(error as Error).message}`);
+        log.warn(`Token rejected: ${(error as Error).message}`);
         tokens = null;
       }
     }
@@ -320,7 +318,7 @@ export async function ensureAuthenticated(
 
   tokens = await authorize(ipc, options);
   await store.save(tokens);
-  log.ok("Autorisation enregistree.");
+  log.ok("Authorization saved.");
   await applyToken(ipc, tokens);
   return tokens;
 }

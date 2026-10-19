@@ -23,27 +23,27 @@ const BADGE_DEAF = "imgs/infobar/badge-deafen.svg";
 const AVATAR_PLACEHOLDER = "imgs/infobar/avatar-placeholder.svg";
 
 /**
- * Periode de defilement quand il y a trop de monde.
+ * Scroll period when there are too many people.
  *
- * Assez lent pour qu'on ait le temps de reconnaitre les visages, et deux mises a
- * jour par cycle, tres loin de la limite de 10 par seconde des guidelines.
+ * Slow enough to recognize faces, and two updates per cycle, far below the
+ * guidelines' limit of 10 per second.
  */
 const SCROLL_INTERVAL_MS = 3_000;
 
 /**
- * Reglages exposes dans le Property Inspector.
+ * Settings exposed in the Property Inspector.
  *
- * Sert de documentation : le SDK type les reglages en `JsonObject`, dont la
- * contrainte d'index rend ce type inutilisable comme parametre de `SingletonAction`.
+ * Serves as documentation: the SDK types settings as `JsonObject`, whose index
+ * constraint makes that type unusable as a `SingletonAction` parameter.
  */
 interface Settings {
 	backgroundColor?: string;
 }
 
-/** Nombre d'emplacements definis dans le layout. */
+/** Number of slots defined in the layout. */
 const SLOTS = GRID_SLOTS;
 
-/** Duree d'affichage de chaque alerte, en millisecondes. */
+/** Display duration of each alert, in milliseconds. */
 const ALERT_DURATION_MS: Record<VoiceAlert["kind"], number> = {
 	joined: 3500,
 	left: 3500,
@@ -51,25 +51,22 @@ const ALERT_DURATION_MS: Record<VoiceAlert["kind"], number> = {
 };
 
 /**
- * Rappel d'une coupure : un voile opaque, tant que ca dure.
+ * Cut reminder: an opaque veil for as long as it lasts.
  *
- * Il ne concerne que TON propre etat : masquer la rangee en boucle parce qu'un
- * autre participant est coupe serait insupportable.
+ * It only concerns YOUR own state: hiding the row in a loop because another
+ * participant is cut would be unbearable.
  *
- * Durees choisies pour laisser le temps de lire la phrase entiere : « Vous etes
- * en sourdine » fait 22 caracteres, une seconde ne suffisait pas. Deux mises a
- * jour par cycle, tres loin de la limite de 10 par seconde des guidelines.
+ * Durations chosen to leave time to read the whole sentence: "You are deafened"
+ * is 16 characters, one second was not enough. Two updates per cycle, far below
+ * the guidelines' limit of 10 per second.
  */
 const FLASH_ON_MS = 2_500;
 const FLASH_CYCLE_MS = 7_500;
 
-/** Message du voile, par type de coupure. */
-const FLASH_MESSAGE: Record<CutKind, string> = {
-	mute: "Vous êtes muet",
-	deafen: "Vous êtes en sourdine"
-};
+/** Translates a key loaded from en.json / fr.json. */
+const t = (key: string): string => streamDeck.i18n.translate(key);
 
-/** Au-dela, on jette : mieux vaut rater une annonce que rester en retard. */
+/** Beyond this, drop: better to miss an announcement than to fall behind. */
 const MAX_QUEUE = 4;
 
 interface InfobarTarget {
@@ -80,33 +77,33 @@ interface InfobarTarget {
 
 type ItemState = Pixmap | string;
 
-/** Coupure la plus severe presente dans le salon. */
+/** Most severe cut present in the channel. */
 type CutKind = "mute" | "deafen";
 
-/** Etat de la file d'alertes d'une action. */
+/** Alert queue state for an action. */
 interface AlertSlot {
 	queue: VoiceAlert[];
 	current: VoiceAlert | null;
 	timer: NodeJS.Timeout | null;
 }
 
-/** Etat du voile de rappel d'une action. */
+/** Reminder veil state for an action. */
 interface FlashSlot {
-	/** Vrai pendant la seconde ou le voile est visible. */
+	/** True while the veil is visible. */
 	on: boolean;
 	onTimer: NodeJS.Timeout | null;
 	cycleTimer: NodeJS.Timeout | null;
 }
 
 /**
- * Action d'Infobar : affichage seul, sans interaction.
+ * Infobar action: display only, no interaction.
  *
- * Les avatars sont des images carrees decoupees en cercle par un cadre superpose
- * (voir tools/generate-infobar.mjs) : aucun pixel n'est manipule ici.
+ * Avatars are square images clipped to a circle by an overlaid frame (see
+ * tools/generate-infobar.mjs): no pixel is manipulated here.
  *
- * Les annonces d'arrivee et de depart sont une surcouche du MEME layout, pas un
- * second layout : changer de layout a chaque evenement demanderait un
- * aller-retour et ferait clignoter l'affichage.
+ * Join and leave announcements are an overlay of the SAME layout, not a second
+ * layout: changing layout on every event would require a round trip and make
+ * the display flicker.
  */
 @action({ UUID: "com.lucas.discord-voice-presence.infobar" })
 export class VoicePresenceInfobar extends SingletonAction {
@@ -114,25 +111,25 @@ export class VoicePresenceInfobar extends SingletonAction {
 	private readonly subscriptions = new Map<string, () => void>();
 	private readonly alertSubscriptions = new Map<string, () => void>();
 
-	/** Couleur de fond choisie dans le Property Inspector, par action. */
+	/** Background color chosen in the Property Inspector, per action. */
 	private readonly themes = new Map<string, ThemeFiles>();
 
-	/** Dernier etat envoye par action, pour n'envoyer que ce qui change. */
+	/** Last state sent per action, so only changes are sent. */
 	private readonly lastSent = new Map<string, Record<string, ItemState>>();
 
-	/** Dernier etat connu, pour redessiner quand une alerte commence ou finit. */
+	/** Last known state, used to redraw when an alert starts or ends. */
 	private readonly lastState = new Map<string, VoicePresenceState>();
 
 	private readonly alerts = new Map<string, AlertSlot>();
 	private readonly flashes = new Map<string, FlashSlot>();
 
-	/** Decalage de la fenetre de defilement, par action. */
+	/** Scroll window offset, per action. */
 	private readonly scrollOffsets = new Map<string, number>();
 	private readonly scrollTimers = new Map<string, NodeJS.Timeout>();
 
 	override async onWillAppear(ev: WillAppearEvent): Promise<void> {
 		if (!ev.action.isNeoInfobar()) {
-			this.logger.warn("Action placee ailleurs que sur l'Infobar d'un Neo : ignoree.");
+			this.logger.warn("Action placed outside a Neo Infobar: ignored.");
 			return;
 		}
 
@@ -141,11 +138,11 @@ export class VoicePresenceInfobar extends SingletonAction {
 		this.themes.set(infobar.id, ensureTheme(ev.payload.settings.backgroundColor));
 
 		try {
-			// Le layout doit etre (re)defini a chaque apparition : Stream Deck ne
-			// conserve pas ce reglage entre deux sessions.
+			// The layout must be (re)defined on every appearance: Stream Deck
+			// does not keep this setting between sessions.
 			await infobar.setFeedbackLayout(LAYOUT);
 		} catch (error) {
-			this.logger.error(`Impossible de definir le layout : ${String(error)}`);
+			this.logger.error(`Cannot set the layout: ${String(error)}`);
 		}
 
 		this.subscriptions.set(
@@ -163,10 +160,10 @@ export class VoicePresenceInfobar extends SingletonAction {
 	}
 
 	/**
-	 * Couleur modifiee depuis le Property Inspector.
+	 * Color changed from the Property Inspector.
 	 *
-	 * Les composants du PI enregistrent des que la valeur change, donc il n'y a
-	 * pas de bouton d'enregistrement : cet evenement est le seul signal.
+	 * PI components save as soon as the value changes, so there is no Save
+	 * button: this event is the only signal.
 	 */
 	override onDidReceiveSettings(ev: DidReceiveSettingsEvent): void {
 		if (!ev.action.isNeoInfobar()) return;
@@ -174,8 +171,8 @@ export class VoicePresenceInfobar extends SingletonAction {
 		const infobar: InfobarTarget = ev.action;
 		this.themes.set(infobar.id, ensureTheme(ev.payload.settings.backgroundColor));
 
-		// Les chemins d'assets changent avec la couleur, donc la comparaison
-		// ci-dessous detecte bien le changement et renvoie la nouvelle carte.
+		// Asset paths change with the color, so the comparison below detects the
+		// change and returns the new card.
 		void this.#render(infobar);
 	}
 
@@ -202,7 +199,7 @@ export class VoicePresenceInfobar extends SingletonAction {
 		this.lastState.delete(id);
 	}
 
-	// --- File d'alertes ------------------------------------------------------
+	// --- Alert queue ---------------------------------------------------------
 
 	#slotFor(id: string): AlertSlot {
 		const existing = this.alerts.get(id);
@@ -217,7 +214,7 @@ export class VoicePresenceInfobar extends SingletonAction {
 		const slot = this.#slotFor(infobar.id);
 
 		if (slot.queue.length >= MAX_QUEUE) {
-			this.logger.warn(`File d'alertes pleine, ${alert.kind} ignoree.`);
+			this.logger.warn(`Alert queue full, ${alert.kind} ignored.`);
 			return;
 		}
 
@@ -225,7 +222,7 @@ export class VoicePresenceInfobar extends SingletonAction {
 		this.#advance(infobar);
 	}
 
-	/** Passe a l'alerte suivante, ou revient a la rangee s'il n'y en a plus. */
+	/** Advances to the next alert, or returns to the row when there is none. */
 	#advance(infobar: InfobarTarget): void {
 		const slot = this.#slotFor(infobar.id);
 		if (slot.current !== null) return;
@@ -249,13 +246,13 @@ export class VoicePresenceInfobar extends SingletonAction {
 		void this.#render(infobar);
 	}
 
-	// --- Voile de rappel des coupures ----------------------------------------
+	// --- Cut reminder veil ---------------------------------------------------
 
 	/**
-	 * Coupure de l'utilisateur courant, ou `null`.
+	 * Current user's cut, or `null`.
 	 *
-	 * Deduit du roster et non d'un evenement : l'etat est ainsi juste des la
-	 * connexion, meme si le micro etait deja coupe avant.
+	 * Derived from the roster rather than an event: the state is therefore
+	 * correct from connection time, even if the microphone was already muted.
 	 */
 	#cutKind(participants: readonly Participant[], selfId: string | null): CutKind | null {
 		if (selfId === null) return null;
@@ -268,18 +265,18 @@ export class VoicePresenceInfobar extends SingletonAction {
 		return null;
 	}
 
-	/** Demarre le cycle si besoin. Sans effet s'il tourne deja. */
+	/** Starts the cycle when needed. No effect if it is already running. */
 	#ensureFlashing(infobar: InfobarTarget, id: string): void {
 		const slot = this.#flashFor(id);
 		if (slot.cycleTimer !== null) return;
 
-		// Le cycle est arme avant la premiere impulsion : sinon l'impulsion
-		// redemanderait un demarrage et on empilerait les minuteries.
+		// The cycle is armed before the first pulse: otherwise the pulse would
+		// request another start and timers would pile up.
 		slot.cycleTimer = setInterval(() => this.#pulse(infobar, id), FLASH_CYCLE_MS);
 		this.#pulse(infobar, id);
 	}
 
-	/** Une impulsion : voile visible une seconde, puis eteint. */
+	/** One pulse: veil visible for a moment, then off. */
 	#pulse(infobar: InfobarTarget, id: string): void {
 		const slot = this.#flashFor(id);
 		slot.on = true;
@@ -304,14 +301,14 @@ export class VoicePresenceInfobar extends SingletonAction {
 		slot.on = false;
 	}
 
-	// --- Defilement ----------------------------------------------------------
+	// --- Scrolling -----------------------------------------------------------
 
-	/** Decalage courant de la fenetre de defilement. */
+	/** Current scroll window offset. */
 	#scrollOffset(id: string): number {
 		return this.scrollOffsets.get(id) ?? 0;
 	}
 
-	/** Demarre le defilement si necessaire. Sans effet s'il tourne deja. */
+	/** Starts scrolling when needed. No effect if it is already running. */
 	#syncScroll(infobar: InfobarTarget, scrolling: boolean): void {
 		const id = infobar.id;
 
@@ -344,7 +341,7 @@ export class VoicePresenceInfobar extends SingletonAction {
 			this.scrollTimers.delete(id);
 		}
 
-		// Revenir au debut evite de reprendre au milieu quand le monde revient.
+		// Returning to the start avoids resuming in the middle when people return.
 		this.scrollOffsets.delete(id);
 	}
 
@@ -357,9 +354,9 @@ export class VoicePresenceInfobar extends SingletonAction {
 		return created;
 	}
 
-	// --- Rendu ---------------------------------------------------------------
+	// --- Rendering -----------------------------------------------------------
 
-	/** Construit la charge utile complete, puis n'envoie que ce qui a change. */
+	/** Builds the full payload, then sends only what changed. */
 	async #render(infobar: InfobarTarget): Promise<void> {
 		const state = this.lastState.get(infobar.id);
 		if (state === undefined) return;
@@ -384,7 +381,7 @@ export class VoicePresenceInfobar extends SingletonAction {
 		try {
 			await infobar.setFeedback(delta);
 		} catch (error) {
-			this.logger.error(`Mise a jour de l'Infobar impossible : ${String(error)}`);
+			this.logger.error(`Cannot update the Infobar: ${String(error)}`);
 		}
 	}
 
@@ -395,11 +392,11 @@ export class VoicePresenceInfobar extends SingletonAction {
 		const payload: Record<string, ItemState> = {};
 		const theme = this.themes.get(infobar.id) ?? ensureTheme(DEFAULT_BACKGROUND);
 
-		// La carte porte la couleur choisie dans le Property Inspector.
+		// The card carries the color chosen in the Property Inspector.
 		payload["card"] = { value: theme.card, opacity: 1 };
 
-		// Tous les emplacements sont toujours decrits : sinon un avatar reste
-		// affiche apres le depart de la personne.
+		// Every slot is always described: otherwise an avatar stays visible
+		// after the person leaves.
 		for (let slot = 0; slot < SLOTS; slot += 1) {
 			payload[`avatar${slot}`] = { value: "", opacity: 0 };
 			payload[`frame${slot}`] = { value: theme.frame, opacity: 0 };
@@ -410,8 +407,8 @@ export class VoicePresenceInfobar extends SingletonAction {
 		const showAvatars = state.status === "ready" && state.channel !== null && participants.length > 0;
 
 		if (showAvatars) {
-			// Au-dela de la fenetre, on fait defiler. La fenetre est alors alignee
-			// a gauche pour balayer toute la rangee ; sinon la rangee est centree.
+			// Beyond the window, scroll. The window is then left-aligned to sweep
+			// the whole row; otherwise the row is centered.
 			const scrolling = participants.length > VISIBLE_SLOTS;
 			const visible = scrolling
 				? scrollWindow(participants, this.#scrollOffset(infobar.id))
@@ -420,8 +417,8 @@ export class VoicePresenceInfobar extends SingletonAction {
 			const avatars = voicePresence.avatars;
 
 			for (const [index, participant] of visible.entries()) {
-				// Les positions occupees avancent d'un emplacement plein, alors que
-				// la grille avance d'un demi : d'ou le pas de 2.
+				// Occupied positions advance by a full slot, while the grid
+				// advances by half: hence the step of 2.
 				const slot = start + index * 2;
 
 				const dataUrl =
@@ -445,8 +442,8 @@ export class VoicePresenceInfobar extends SingletonAction {
 		await this.#applyAlert(payload, infobar.id, state, showAvatars, theme);
 		const flashing = this.#applyFlash(payload, infobar, participants, state.selfId);
 
-		// Le texte centre est au-dessus du voile : on le vide pour qu'il ne
-		// s'affiche pas par-dessus.
+		// The centered text is above the veil: clear it so it does not appear
+		// on top of it.
 		if (flashing) {
 			payload["status"] = "";
 			payload["detail"] = "";
@@ -456,9 +453,9 @@ export class VoicePresenceInfobar extends SingletonAction {
 	}
 
 	/**
-	 * Ajoute le voile de rappel, ou l'eteint et arrete le cycle.
+	 * Adds the reminder veil, or turns it off and stops the cycle.
 	 *
-	 * Renvoie vrai si le voile est actuellement visible.
+	 * Returns true when the veil is currently visible.
 	 */
 	#applyFlash(
 		payload: Record<string, ItemState>,
@@ -484,12 +481,12 @@ export class VoicePresenceInfobar extends SingletonAction {
 		payload["flashBg"] = { value: `imgs/infobar/flash-bg-${kind}.svg`, opacity };
 		payload["flashBar"] = { value: "imgs/infobar/flash-bar.svg", opacity };
 		payload["flashIcon"] = { value: `imgs/infobar/flash-icon-${kind}.svg`, opacity };
-		payload["flashText"] = visible ? FLASH_MESSAGE[kind] : "";
+		payload["flashText"] = visible ? t(`flash.${kind}`) : "";
 
 		return visible;
 	}
 
-	/** Ajoute la surcouche d'annonce, ou la masque et remet le texte d'etat. */
+/** Adds the announcement overlay, or hides it and restores the status text. */
 	async #applyAlert(
 		payload: Record<string, ItemState>,
 		id: string,
@@ -508,7 +505,7 @@ export class VoicePresenceInfobar extends SingletonAction {
 			payload["channelName"] = "";
 			payload["alertDetail"] = "";
 
-			// Le texte centre sert aux etats sans avatars.
+			// The centered text is used for states without avatars.
 			if (showAvatars) {
 				payload["status"] = "";
 				payload["detail"] = "";
@@ -523,8 +520,8 @@ export class VoicePresenceInfobar extends SingletonAction {
 		payload["alertAccent"] = { value: `imgs/infobar/accent-${alert.kind}.svg`, opacity: 1 };
 
 		if (alert.kind === "channel") {
-			// Le nom du salon seul, en grand : pas d'avatar, donc pas de trou a
-			// gauche, et pas de nom de serveur qui viendrait le concurrencer.
+			// The channel name alone, large: no avatar, so no gap on the left,
+			// and no guild name competing with it.
 			payload["alertAvatar"] = { value: "", opacity: 0 };
 			payload["alertFrame"] = { value: theme.frame, opacity: 0 };
 			payload["alertTitle"] = "";
@@ -540,7 +537,7 @@ export class VoicePresenceInfobar extends SingletonAction {
 		payload["alertAvatar"] = { value: dataUrl ?? AVATAR_PLACEHOLDER, opacity: 1 };
 		payload["alertFrame"] = { value: `imgs/infobar/frame-${alert.kind}.svg`, opacity: 1 };
 		payload["alertTitle"] = alert.participant.name;
-		payload["alertDetail"] = ALERT_DETAIL[alert.kind];
+		payload["alertDetail"] = t(`alert.${alert.kind}`);
 		payload["status"] = "";
 		payload["detail"] = "";
 	}
@@ -550,12 +547,12 @@ export class VoicePresenceInfobar extends SingletonAction {
 		return avatars === null ? null : avatars.get(participant.id, participant.avatarHash);
 	}
 
-	/** Emplacement de depart, pour centrer la rangee quand elle est courte. */
+	/** Starting slot, used to center the row when it is short. */
 	#startSlot(count: number): number {
 		return centeredStart(count);
 	}
 
-	/** Badge a afficher, ou `null`. Le casque prime : il coupe aussi le micro. */
+	/** Badge to display, or `null`. The headset wins: it also mutes the mic. */
 	#badgeOf(participant: Participant): string | null {
 		if (participant.selfDeaf || participant.serverDeaf) return BADGE_DEAF;
 		if (participant.selfMute || participant.serverMute || participant.suppressed) return BADGE_MUTE;
@@ -563,31 +560,27 @@ export class VoicePresenceInfobar extends SingletonAction {
 	}
 
 	#statusLine(state: VoicePresenceState): string {
-		if (state.status === "error") return "Discord indisponible";
-		if (state.status === "connecting") return "Connexion a Discord...";
-		if (state.channel === null) return "Pas en vocal";
-		return "Salon vide";
+		if (state.status === "error") return t("status.error");
+		if (state.status === "connecting") return t("status.connecting");
+		if (state.channel === null) return t("status.notInVoice");
+		return t("status.emptyChannel");
 	}
 
 	#detailLine(state: VoicePresenceState): string {
-		if (state.status === "error") return state.message ?? "Lance le client Discord";
-		if (state.status === "connecting") return "Premier lancement : autorise le plugin";
-		if (state.channel === null) return "Rejoins un salon vocal";
+		if (state.status === "error") {
+			return state.message === null ? t("detail.errorFallback") : t(state.message);
+		}
+		if (state.status === "connecting") return t("detail.connecting");
+		if (state.channel === null) return t("detail.notInVoice");
 		return [state.guild, state.channel].filter((part) => part !== null).join(" · ");
 	}
 }
 
-/** Libelle affiche sous le nom, par type d'annonce. */
-const ALERT_DETAIL: Record<Exclude<VoiceAlert["kind"], "channel">, string> = {
-	joined: "a rejoint le vocal",
-	left: "a quitte le vocal"
-};
-
 /**
- * Fenetre de `VISIBLE_SLOTS` participants, circulaire.
+ * Circular window of `VISIBLE_SLOTS` participants.
  *
- * Circulaire et non lineaire : les derniers reviennent au debut, donc personne
- * ne disparait de l'affichage.
+ * Circular rather than linear: the last ones wrap to the beginning, so nobody
+ * disappears from the display.
  */
 function scrollWindow(participants: readonly Participant[], offset: number): Participant[] {
 	if (participants.length <= VISIBLE_SLOTS) return [...participants];
@@ -599,11 +592,11 @@ function scrollWindow(participants: readonly Participant[], offset: number): Par
 }
 
 /**
- * Deux items sont identiques si leur valeur et leur opacite le sont.
+ * Two items are identical when their value and opacity are identical.
  *
- * Comparer directement les chaines suffit : le cache d'avatars renvoie la meme
- * instance de data URI tant que l'avatar n'a pas change, donc aucune comparaison
- * couteuse sur des dizaines de kilo-octets.
+ * Comparing strings directly is enough: the avatar cache returns the same data
+ * URI instance until the avatar changes, so no expensive comparison over tens
+ * of kilobytes is needed.
  */
 function sameItem(previous: ItemState | undefined, next: ItemState): boolean {
 	if (previous === next) return true;

@@ -1,10 +1,9 @@
 /**
- * Adaptateur de journalisation.
+ * Logging adapter.
  *
- * Les modules de la couche Discord viennent du prototype, ou ils ecrivaient sur
- * stderr. Ici, tout part dans le logger de Stream Deck : les messages se
- * retrouvent dans `<uuid>.sdPlugin/logs/`, ce qui est le seul endroit ou
- * l'utilisateur peut les consulter.
+ * The Discord layer modules come from the prototype, where they wrote to
+ * stderr. Here everything goes through the Stream Deck logger: messages end up
+ * in `<uuid>.sdPlugin/logs/`, the only place the user can inspect them.
  */
 
 import streamDeck from "@elgato/streamdeck";

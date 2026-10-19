@@ -1,62 +1,90 @@
-# discord-voice-presence
+# Voice Presence for Discord
 
-Plugin Stream Deck **en complément du plugin Discord officiel** : affiche les
-avatars des personnes présentes dans ton salon vocal sur l'**Infobar du Stream Deck Neo**.
+A Stream Deck plugin **that complements the Discord plugin from Elgato**: it
+shows the avatars of the people in your voice channel on the **Stream Deck Neo
+Infobar**.
 
-Le plugin officiel garde ses boutons (mute, deafen, rejoindre…) ; celui-ci
-occupe uniquement l'Infobar et reste purement informatif.
+Elgato's Discord plugin keeps its buttons (mute, deafen, join...); this one only
+uses the Infobar and remains purely informational.
 
-## Pourquoi ça marche
+## How it works
 
-| Brique | Ce qu'on sait |
+| Piece | What we use |
 | --- | --- |
-| Infobar du Neo | Personnalisable depuis **Stream Deck 7.6 / SDK 3.0** : layout `232 × 50 px`, items `pixmap` / `text` |
-| Avatars Discord | `GET_IMAGE` du RPC local renvoie directement un `data:image/png;base64,…` |
-| Participants | `GET_SELECTED_VOICE_CHANNEL` + événements `VOICE_STATE_*` / `SPEAKING_*` |
-| Autorisation | Scope OAuth `rpc`, à consentir **une seule fois** |
+| Neo Infobar | Customizable since **Stream Deck 7.6 / SDK 3.0**: `232 × 50 px` layout with `pixmap` / `text` items |
+| Discord avatars | `GET_IMAGE` from the local RPC returns a `data:image/png;base64,...` directly |
+| Participants | `GET_SELECTED_VOICE_CHANNEL` plus `VOICE_STATE_*` / `SPEAKING_*` events |
+| Authorization | OAuth `rpc` scope, granted **once** |
 
-Le tout passe par le **RPC IPC local** de Discord (`\\.\pipe\discord-ipc-0`) :
-pas de bot, pas de token de compte, pas de scraping.
+Everything goes through Discord's **local IPC RPC** (`\\.\pipe\discord-ipc-0`):
+no bot, no account token, no scraping.
 
 ## Structure
 
 ```
-prototype/   Phase 1 — validation de la partie Discord, hors Stream Deck
-plugin/      Phase 2 — le plugin Stream Deck (SDK 3, actions Infobar)
+prototype/   Phase 1 - validate the Discord side, outside Stream Deck
+plugin/      Phase 2 - the Stream Deck plugin (SDK 3, Infobar actions)
 ```
 
-Le prototype est le **banc d'essai** : il sert à valider la partie Discord
-(`npm run smoke`, `status`, `watch`, `preview`) et porte les tests de
-`VoiceMonitor`. Le plugin, lui, est l'artefact publié.
+The prototype is the **test bench**: it validates the Discord layer
+(`npm run smoke`, `status`, `watch`, `preview`) and holds the `VoiceMonitor`
+tests. The plugin is the published artifact.
 
 ## Plugin
 
 ```powershell
 cd plugin
 npm install
-npm run build          # produit <uuid>.sdPlugin/bin/plugin.js
-npm run validate       # vérifie le manifeste
-npm run link           # installe le plugin dans Stream Deck
-npm run icons          # régénère les icônes PNG depuis les SVG
-npm run watch          # build continu + redémarrage du plugin
+npm run build          # writes <uuid>.sdPlugin/bin/plugin.js
+npm run assets         # regenerates the Infobar layout and assets
+npm run icons          # regenerates the PNG icons and checks the SVGs
+npm run locales        # checks that en.json and fr.json expose the same keys
+npm run marketplace    # generates the Marketplace listing visuals
+npm run validate       # validates the manifest and layout
+npm run link           # installs the plugin in Stream Deck
+npm run watch          # continuous build + plugin restart
+npm run release        # build + assets + icons + visuals + validation + pack
 ```
 
-Le plugin reprend les conventions des autres plugins de l'auteur
-(`com.lucas.*`, SDK 3, `Software.MinimumVersion` 7.6, rollup).
+The plugin follows the author's other plugin conventions (`com.lucas.*`, SDK 3,
+`Software.MinimumVersion` 7.6, rollup).
 
-⚠️ **`sharp` ne peut pas être embarqué** dans le plugin : c'est un module natif,
-et Stream Deck exécute un bundle JavaScript unique. Il reste une devDependency,
-réservée à la génération des icônes. Le rendu de l'Infobar doit donc se faire
-avec le moteur de layouts et des assets statiques.
+**`sharp` cannot be bundled** in the plugin: it is a native module, and Stream
+Deck runs a single JavaScript bundle. It remains a devDependency, used only to
+generate icons and Marketplace visuals. The Infobar itself is rendered with the
+layout engine and static assets.
 
-## Phase 1 — prototype
+## Marketplace publication
 
-Voir [`prototype/README.md`](prototype/README.md).
+The project follows the Elgato guidelines for metadata, icons, layouts, the
+Property Inspector, and packaging:
 
-## Contraintes connues
+| Item | Format |
+| --- | --- |
+| Plugin icon | PNG `256 × 256` and `512 × 512` (`icon.png`, `icon@2x.png`) |
+| Marketplace app icon | PNG `288 × 288` |
+| Category icon | SVG `28 × 28`, white `#FFFFFF`, transparent background |
+| Action icons | SVG `20 × 20`, white `#FFFFFF`, transparent background |
+| Key icons | SVG `72 × 72` |
+| Thumbnail and gallery | PNG `1920 × 960` |
 
-- Seul le salon où **tu** es connecté est visible (`GET_SELECTED_VOICE_CHANNEL`).
-- L'Infobar est **en affichage seul** : aucune interaction tactile.
-- Un layout est un rendu **discret** : pas de défilement fluide, seulement un
-  carrousel par sauts.
-- Un token OAuth expire (~7 jours) : le rafraîchissement est géré.
+The visuals and the English description live in
+[`plugin/marketplace/`](plugin/marketplace/). The submission checklist,
+metadata, and remaining items to complete before publication are documented
+there.
+
+The plugin is localized in **English** and **French**: `en.json` and `fr.json`
+cover the manifest, the Infobar text, and the Property Inspector. English is
+the fallback for every other language, and the Property Inspector follows the
+Stream Deck application language when it is available.
+
+## Phase 1 - prototype
+
+See [`prototype/README.md`](prototype/README.md).
+
+## Known limitations
+
+- Only the channel **you** are connected to is visible (`GET_SELECTED_VOICE_CHANNEL`).
+- The Infobar is **display-only**: there is no touch interaction.
+- A layout is a **discrete** render: no smooth scrolling, only a step carousel.
+- An OAuth token expires (~7 days); refresh is handled.

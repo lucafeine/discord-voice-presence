@@ -1,0 +1,47 @@
+{
+	"Name": "Voice Presence for Discord",
+	"Description": "Voice Presence for Discord affiche les personnes présentes dans votre salon vocal sans quitter votre Stream Deck. Le plugin affiche jusqu'à quatre avatars de participants sur l'Infobar du Stream Deck Neo, met en avant la personne qui parle et ajoute des badges muet et sourdine. Il annonce aussi les arrivées, les départs et les changements de salon. Utilisez-le avec le plugin Discord d'Elgato : Discord garde ses touches muet, sourdine et rejoindre, tandis que Voice Presence remplit l'Infobar. Nécessite Discord pour Windows et un Stream Deck Neo. Une autorisation Discord unique est requise.",
+	"com.lucas.discord-voice-presence.infobar": {
+		"Name": "Salon vocal (Infobar)",
+		"Tooltip": "Affiche les participants du salon vocal Discord sur l'Infobar du Stream Deck Neo.",
+		"States": [
+			{
+				"Name": "Présence vocale"
+			}
+		]
+	},
+	"com.lucas.discord-voice-presence.connect": {
+		"Name": "Se reconnecter à Discord",
+		"Tooltip": "Demande une nouvelle autorisation Discord et reconnecte le plugin.",
+		"States": [
+			{
+				"Name": "Reconnecter"
+			}
+		]
+	},
+	"Localization": {
+		"status": {
+			"error": "Discord indisponible",
+			"connecting": "Connexion à Discord...",
+			"notInVoice": "Pas en vocal",
+			"emptyChannel": "Salon vide"
+		},
+		"detail": {
+			"errorFallback": "Lance le client Discord",
+			"connecting": "Premier lancement : autorise le plugin",
+			"notInVoice": "Rejoins un salon vocal"
+		},
+		"error": {
+			"discordMissing": "Lance le client Discord",
+			"discordUnresponsive": "Discord ne répond pas, nouvel essai automatique"
+		},
+		"alert": {
+			"joined": "a rejoint le vocal",
+			"left": "a quitté le vocal"
+		},
+		"flash": {
+			"mute": "Vous êtes muet",
+			"deafen": "Vous êtes en sourdine"
+		}
+	}
+}

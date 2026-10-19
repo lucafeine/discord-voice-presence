@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="surface" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#171a22"/>
+      <stop offset="1" stop-color="#08090d"/>
+    </linearGradient>
+    <linearGradient id="infobar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#232733"/>
+      <stop offset="1" stop-color="#12151c"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Fond plein cadre, coins arrondis : lisible sur thème clair comme sombre. -->
+  <rect width="256" height="256" rx="56" fill="url(#surface)"/>
+
+  <!-- L'Infobar du Neo, avec ses avatars. -->
+  <rect x="25" y="88" width="206" height="80" rx="22" fill="url(#infobar)"
+        stroke="#333846" stroke-width="4"/>
+  <circle cx="76" cy="128" r="19" fill="#5865f2"/>
+  <circle cx="128" cy="128" r="19" fill="#eb459e"/>
+  <circle cx="180" cy="128" r="19" fill="#57f287"/>
+
+  <!-- Anneau de parole, l'information la plus utile en un coup d'œil. -->
+  <circle cx="76" cy="128" r="27" fill="none" stroke="#23a55a" stroke-width="6"/>
+</svg>

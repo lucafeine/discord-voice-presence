@@ -1,12 +1,12 @@
 {
 	"$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
-	"Name": "Voice Presence",
-	"Version": "0.1.0.0",
-	"Author": "Lucas",
-	"Description": "Display the Discord voice channel participants on the Stream Deck Neo Infobar. Works alongside the official Discord plugin.",
+	"Name": "Voice Presence for Discord",
+	"Version": "1.0.0.0",
+	"Author": "Lucas Spitzer",
+	"Description": "Voice Presence for Discord shows who is in your voice channel without leaving your Stream Deck. The plugin displays up to four participant avatars on the Stream Deck Neo Infobar, highlights the person speaking, and adds mute and deafen badges. It also announces arrivals, departures, and channel changes. Use it alongside the Discord plugin from Elgato: Discord keeps its mute, deafen, and join keys, while Voice Presence fills the Infobar. Requires Discord for Windows and a Stream Deck Neo. A one-time Discord authorization is required.",
 	"UUID": "com.lucas.discord-voice-presence",
 	"Icon": "imgs/plugin/icon",
-	"Category": "Voice Presence",
+	"Category": "Voice Presence for Discord",
 	"CategoryIcon": "imgs/plugin/category-icon",
 	"CodePath": "bin/plugin.js",
 	"SDKVersion": 3,
@@ -24,11 +24,13 @@
 	],
 	"Actions": [
 		{
-			"Name": "Voice Presence (Infobar)",
+			"Name": "Voice Channel (Infobar)",
 			"UUID": "com.lucas.discord-voice-presence.infobar",
 			"Icon": "imgs/actions/infobar/icon",
-			"Tooltip": "Show the Discord voice channel participants on the Neo Infobar.",
-			"Controllers": ["Neo"],
+			"Tooltip": "Show Discord voice channel participants on the Stream Deck Neo Infobar.",
+			"Controllers": [
+				"Neo"
+			],
 			"PropertyInspectorPath": "ui/infobar.html",
 			"States": [
 				{
@@ -39,15 +41,17 @@
 			"UserTitleEnabled": false
 		},
 		{
-			"Name": "Connect to Discord",
+			"Name": "Reconnect to Discord",
 			"UUID": "com.lucas.discord-voice-presence.connect",
 			"Icon": "imgs/actions/connect/icon",
-			"Tooltip": "Force a new Discord authorization: opens the consent window again.",
-			"Controllers": ["Keypad"],
+			"Tooltip": "Request a new Discord authorization and reconnect the plugin.",
+			"Controllers": [
+				"Keypad"
+			],
 			"States": [
 				{
 					"Image": "imgs/actions/connect/key",
-					"Name": "Connect"
+					"Name": "Reconnect"
 				}
 			],
 			"SupportedInMultiActions": true,

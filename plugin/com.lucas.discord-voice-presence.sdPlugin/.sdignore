@@ -1,0 +1,5 @@
+# Fichiers locaux a ne pas embarquer dans le .streamDeckPlugin.
+logs/
+*.map
+.DS_Store
+Thumbs.db

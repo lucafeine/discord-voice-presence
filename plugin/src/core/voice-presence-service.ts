@@ -1,13 +1,12 @@
 /**
- * Service de presence vocale.
+ * Voice presence service.
  *
- * Un seul point de verite pour tout le plugin : il maintient la connexion au RPC
- * Discord, s'authentifie, suit le salon vocal, et diffuse l'etat aux actions
- * abonnees. Les actions ne parlent jamais directement a Discord.
+ * The single source of truth for the plugin: it maintains the Discord RPC
+ * connection, authenticates, tracks the voice channel, and broadcasts state to
+ * subscribed actions. Actions never talk to Discord directly.
  *
- * La connexion est ouverte a la demande (premiere action placee) et fermee
- * quand plus aucune action n'est presente, pour ne pas garder un processus
- * connecte inutilement.
+ * The connection opens on demand (first placed action) and closes when no
+ * actions remain, so a connection is not kept alive unnecessarily.
  */
 
 import { ensureAuthenticated } from "../discord/auth.js";
@@ -20,15 +19,15 @@ import { GlobalSettingsTokenStore } from "../discord/settings.js";
 import type { Participant, RpcChannel } from "../discord/types.js";
 import { VoiceMonitor } from "../discord/voice.js";
 
-/** Delais entre deux tentatives, du plus court au plus long. */
+/** Delays between attempts, from shortest to longest. */
 const RECONNECT_DELAYS_MS = [15_000, 30_000, 60_000, 120_000];
 
 /**
- * Delai avant de fermer la connexion quand plus aucune action n'est abonnee.
+ * Delay before closing the connection when no actions remain subscribed.
  *
- * Stream Deck redemande `willAppear` lors d'un changement de profil ou d'une
- * modification de l'action. Fermer la connexion a chaque fois provoquerait une
- * rafale de reconnexions, et Discord n'en accepte que deux par minute.
+ * Stream Deck requests `willAppear` again on profile changes or action edits.
+ * Closing the connection every time would cause a burst of reconnects, and
+ * Discord allows only two per minute.
  */
 const STOP_GRACE_MS = 3_000;
 
@@ -36,13 +35,13 @@ export type VoicePresenceStatus = "connecting" | "ready" | "error";
 
 export interface VoicePresenceState {
 	status: VoicePresenceStatus;
-	/** Message destine a l'utilisateur, en cas d'erreur. */
+	/** User-facing message in case of an error. */
 	message: string | null;
-	/** Identifiant Discord de l'utilisateur courant, pour le reconnaitre dans le roster. */
+	/** Current user's Discord ID, used to recognize them in the roster. */
 	selfId: string | null;
-	/** Nom du salon vocal, ou `null` hors vocal. */
+	/** Voice channel name, or `null` when not in voice. */
 	channel: string | null;
-	/** Nom du serveur, quand il est connu. */
+	/** Guild name, when known. */
 	guild: string | null;
 	participants: Participant[];
 }
@@ -57,11 +56,11 @@ const INITIAL: VoicePresenceState = {
 };
 
 /**
- * Evenement transitoire a annoncer quelques secondes.
+ * Transient event to announce for a few seconds.
  *
- * Les coupures de micro et de casque n'en font pas partie : elles ne sont pas
- * annoncees une fois mais rappelees en continu tant qu'elles durent, et l'action
- * deduit cet etat du roster plutot que d'un evenement.
+ * Microphone and headset cuts are not part of it: they are not announced once
+ * but recalled continuously while they last, and the action derives that state
+ * from the roster rather than from an event.
  */
 export type VoiceAlert =
 	| { kind: "joined"; participant: Participant }
@@ -72,13 +71,15 @@ type Listener = (state: VoicePresenceState) => void;
 type AlertListener = (alert: VoiceAlert) => void;
 
 /**
- * Rend un echec de connexion comprehensible pour l'utilisateur.
+ * Turns a connection failure into a user-friendly message.
  *
- * Le detail technique reste dans le journal : l'Infobar n'a que deux lignes.
+ * Technical details stay in the log: the Infobar only has two lines. Known
+ * cases return a translation key; `#detailLine` resolves it at render time,
+ * once the Stream Deck client language is known.
  */
 function explain(message: string): string {
-  if (message.includes("pipe Discord joignable")) return "Lance le client Discord";
-  if (message.includes("READY")) return "Discord ne repond pas, nouvel essai automatique";
+  if (message.includes("No Discord pipe reachable")) return "error.discordMissing";
+  if (message.includes("READY")) return "error.discordUnresponsive";
   return message;
 }
 
@@ -91,15 +92,15 @@ export class VoicePresenceService {
 	#ipc: DiscordIpc | null = null;
 	#monitor: VoiceMonitor | null = null;
 	#avatars: AvatarCache | null = null;
-	/** Identifiant de l'utilisateur courant, connu apres la connexion. */
+	/** Current user ID, known after connection. */
 	#selfId: string | null = null;
 
 	/**
-	 * Vrai une fois le salon annonce.
+	 * True once the channel has been announced.
 	 *
-	 * Le nom du salon n'est utile qu'au moment ou l'on decouvre ou l'on est : le
-	 * repeter a chaque changement de salon occupe l'ecran pour rien, alors que
-	 * les avatars sont l'information utile.
+	 * The channel name is useful only when discovering where you are: repeating
+	 * it on every channel change occupies the screen for nothing, while avatars
+	 * are the useful information.
 	 */
 	#channelAnnounced = false;
 	#starting = false;
@@ -109,7 +110,7 @@ export class VoicePresenceService {
 	#stopTimer: NodeJS.Timeout | null = null;
 	#reconnectAttempts = 0;
 
-	/** Cache d'avatars, disponible une fois la connexion etablie. */
+	/** Avatar cache, available once the connection is established. */
 	get avatars(): AvatarCache | null {
 		return this.#avatars;
 	}
@@ -118,13 +119,13 @@ export class VoicePresenceService {
 		return this.#state;
 	}
 
-	/** S'abonne aux changements d'etat ; renvoie la fonction de desabonnement. */
+	/** Subscribes to state changes; returns the unsubscribe function. */
 	subscribe(listener: Listener): () => void {
 		this.#listeners.add(listener);
 
-		// Une nouvelle arrivee annule l'extinction programmee : sinon un simple
-		// willAppear redemande par Stream Deck couperait puis rouvrirait la
-		// connexion Discord.
+		// A new subscriber cancels the scheduled shutdown: otherwise a simple
+		// willAppear requested again by Stream Deck would close then reopen the
+		// Discord connection.
 		if (this.#stopTimer !== null) {
 			clearTimeout(this.#stopTimer);
 			this.#stopTimer = null;
@@ -144,7 +145,7 @@ export class VoicePresenceService {
 		};
 	}
 
-	/** Ferme la connexion si personne ne se reabonne entre-temps. */
+	/** Closes the connection if nobody subscribes again in the meantime. */
 	#scheduleStop(): void {
 		if (this.#stopTimer !== null) return;
 
@@ -155,7 +156,7 @@ export class VoicePresenceService {
 		this.#stopTimer.unref();
 	}
 
-	/** S'abonne aux evenements transitoires (arrivees, departs, coupures). */
+	/** Subscribes to transient events (joins, leaves, cuts). */
 	onAlert(listener: AlertListener): () => void {
 		this.#alertListeners.add(listener);
 		return () => {
@@ -164,20 +165,20 @@ export class VoicePresenceService {
 	}
 
 	/**
-	 * Force une nouvelle autorisation.
+	 * Forces a new authorization.
 	 *
-	 * Le jeton enregistre est efface, puis le consentement est redemande : c'est
-	 * la seule facon de rouvrir la fenetre d'autorisation de Discord, qui n'est
-	 * proposee qu'une fois par autorisation accordee.
+	 * The stored token is cleared, then consent is requested again: this is the
+	 * only way to reopen Discord's authorization window, which is offered only
+	 * once per granted authorization.
 	 */
 	async reauthorize(): Promise<void> {
 		if (this.#authorizing) {
-			log.warn("Une autorisation est deja en cours.");
+			log.warn("An authorization is already in progress.");
 			return;
 		}
 
 		this.#authorizing = true;
-		log.info("Nouvelle autorisation demandee.");
+		log.info("New authorization requested.");
 		this.#teardown();
 
 		try {
@@ -189,7 +190,7 @@ export class VoicePresenceService {
 		}
 	}
 
-	// --- Cycle de vie --------------------------------------------------------
+	// --- Lifecycle ------------------------------------------------------------
 
 	async #start(): Promise<void> {
 		if (this.#starting || this.#ipc !== null) return;
@@ -223,22 +224,22 @@ export class VoicePresenceService {
 				void this.#onChannel(channel);
 			});
 			monitor.on("joined", (participant) => {
-				log.info(`${participant.name} a rejoint.`);
+				log.info(`${participant.name} joined.`);
 
-				// Toi, c'est deja annonce par le nom du salon : un popup par-dessus
-				// ferait doublon avec ce que tu viens de faire.
+				// You are already announced by the channel name: a popup on top
+				// would duplicate what you just did.
 				if (participant.id === this.#selfId) return;
 				this.#emitAlert({ kind: "joined", participant });
 			});
 
 			monitor.on("left", (participant) => {
-				log.info(`${participant.name} a quitte.`);
+				log.info(`${participant.name} left.`);
 				if (participant.id === this.#selfId) return;
 				this.#emitAlert({ kind: "left", participant });
 			});
 
 			ipc.on("close", (reason) => {
-				log.warn(`Connexion Discord perdue (${reason}).`);
+				log.warn(`Discord connection lost (${reason}).`);
 				this.#scheduleReconnect();
 			});
 
@@ -247,7 +248,7 @@ export class VoicePresenceService {
 			this.#reconnectAttempts = 0;
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			log.error(`Connexion a Discord impossible : ${message}`);
+			log.error(`Cannot connect to Discord: ${message}`);
 			this.#publish({ ...this.#state, status: "error", message: explain(message) });
 			this.#scheduleReconnect();
 		} finally {
@@ -255,7 +256,7 @@ export class VoicePresenceService {
 		}
 	}
 
-	/** Ferme la connexion sans arreter le service (une reconnexion peut suivre). */
+	/** Closes the connection without stopping the service (a reconnect may follow). */
 	#teardown(): void {
 		if (this.#retryTimer !== null) {
 			clearTimeout(this.#retryTimer);
@@ -266,8 +267,8 @@ export class VoicePresenceService {
 		this.#ipc = null;
 		this.#monitor = null;
 		this.#avatars = null;
-		// Une reconnexion redonne droit a une annonce du salon : c'est de nouveau
-		// une decouverte.
+		// A reconnect grants another channel announcement: it is a discovery
+		// again.
 		this.#channelAnnounced = false;
 	}
 
@@ -292,13 +293,13 @@ export class VoicePresenceService {
 		this.#monitor = null;
 		this.#avatars = null;
 
-		// Delai croissant : Discord n'accepte que deux connexions par minute, donc
-		// reessayer trop vite entretient l'echec au lieu de le resoudre.
+		// Increasing delay: Discord allows only two connections per minute, so
+		// retrying too fast sustains the failure instead of solving it.
 		const index = Math.min(this.#reconnectAttempts, RECONNECT_DELAYS_MS.length - 1);
 		const delay = RECONNECT_DELAYS_MS[index] ?? 120_000;
 		this.#reconnectAttempts += 1;
 
-		log.warn(`Nouvel essai dans ${Math.round(delay / 1000)} s.`);
+		log.warn(`Retrying in ${Math.round(delay / 1000)} s.`);
 
 		this.#retryTimer = setTimeout(() => {
 			this.#retryTimer = null;
@@ -307,7 +308,7 @@ export class VoicePresenceService {
 		this.#retryTimer.unref();
 	}
 
-	// --- Etat ----------------------------------------------------------------
+	// --- State ---------------------------------------------------------------
 
 	async #onChannel(channel: RpcChannel | null): Promise<void> {
 		const guild = this.#monitor === null ? null : await this.#monitor.guildName(channel);
@@ -321,8 +322,8 @@ export class VoicePresenceService {
 			guild
 		});
 
-		// Annonce du salon : une seule fois, a la connexion. Le repeter a chaque
-		// changement de salon masquerait les avatars sans rien apprendre.
+		// Channel announcement: once per connection. Repeating it on every
+		// channel change would hide the avatars without teaching anything.
 		if (channel !== null && !this.#channelAnnounced) {
 			this.#channelAnnounced = true;
 			this.#emitAlert({ kind: "channel", channel: channel.name, guild });

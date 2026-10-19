@@ -1,15 +1,15 @@
 /**
- * Apercu local du rendu de l'Infobar.
+ * Local preview of the Infobar rendering.
  *
- * Script de developpement uniquement (`sharp` n'est pas embarque dans le
- * plugin). Il compose les MEMES assets et la MEME geometrie que le device, avec
- * des avatars factices volontairement carres et bordes de blanc : si les coins
- * disparaissent et que l'image est bien ronde, la geometrie du cadre est bonne.
+ * Development script only (`sharp` is not bundled in the plugin). It composes
+ * the SAME assets and SAME geometry as the device, with fake avatars
+ * intentionally square and white-bordered: if the corners disappear and the
+ * image is properly round, the frame geometry is correct.
  *
- * Cela valide la conception, pas le moteur de rendu de Stream Deck : `sharp`
- * rasterise via librsvg, le device a le sien.
+ * This validates the design, not the Stream Deck rendering engine: `sharp`
+ * rasterizes through librsvg, the device has its own.
  *
- * Usage : npm run preview
+ * Usage: npm run preview
  */
 
 import fs from "node:fs";
@@ -55,17 +55,17 @@ const outDir = path.join(root, "out");
 
 const read = (name: string): Buffer => fs.readFileSync(path.join(assets, name));
 
-/** Lecture d'un chemin relatif a la racine du plugin, tel que themePaths le rend. */
+/** Reads a path relative to the plugin root, as themePaths returns it. */
 const readPlugin = (relativePath: string): Buffer => fs.readFileSync(path.join(plugin, relativePath));
 
-/** Assets du theme par defaut, resolus par le module partage. */
+/** Default theme assets, resolved by the shared module. */
 const theme = themePaths(DEFAULT_BACKGROUND);
 
-/** Rend un SVG a une taille donnee. */
+/** Renders an SVG at a given size. */
 const toPng = (svg: Buffer, width: number, height: number): Promise<Buffer> =>
 	sharp(svg, { density: 300 }).resize(width, height).png().toBuffer();
 
-/** Avatar factice CARRE et borde : les coins doivent disparaitre. */
+/** Fake SQUARE bordered avatar: the corners must disappear. */
 async function squareAvatar(label: string, color: string, size = 256): Promise<Buffer> {
 	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">
     <rect width="${size}" height="${size}" fill="${color}"/>
@@ -85,8 +85,8 @@ const ACCENT_COLORS: Record<string, string> = {
 };
 
 const FLASH_MESSAGE: Record<string, string> = {
-	mute: "Vous êtes muet",
-	deafen: "Vous êtes en sourdine"
+	mute: "You are muted",
+	deafen: "You are deafened"
 };
 
 interface AlertSpec {
@@ -98,7 +98,7 @@ interface AlertSpec {
 
 interface CaseSpec {
 	count: number;
-	/** Decalage de la fenetre de defilement. */
+	/** Scroll window offset. */
 	offset?: number;
 	speaking?: number;
 	badge?: string;
@@ -114,7 +114,7 @@ function textSvg(width: number, height: number, body: string): Promise<Buffer> {
 		.toBuffer();
 }
 
-/** Rend une annonce : aplat de couleur, avatar eventuel, texte. */
+/** Renders an announcement: color fill, optional avatar, text. */
 async function composeAlert(layers: sharp.OverlayOptions[], alert: AlertSpec): Promise<void> {
 	layers.push({ input: await toPng(read("alert-bg.svg"), WIDTH, HEIGHT), left: 0, top: 0 });
 	layers.push({
@@ -153,7 +153,7 @@ async function composeAlert(layers: sharp.OverlayOptions[], alert: AlertSpec): P
 	layers.push({ input: await textSvg(WIDTH, HEIGHT, body), left: 0, top: 0 });
 }
 
-/** Voile de rappel : opaque, il masque la rangee, c'est voulu. */
+/** Reminder veil: opaque, it hides the row by design. */
 async function composeFlash(layers: sharp.OverlayOptions[], kind: string): Promise<void> {
 	layers.push({ input: await toPng(read(`flash-bg-${kind}.svg`), WIDTH, HEIGHT), left: 0, top: 0 });
 	layers.push({
@@ -183,8 +183,8 @@ async function compose(spec: CaseSpec): Promise<Buffer> {
 		{ input: await toPng(readPlugin(theme.card), WIDTH, HEIGHT), left: 0, top: 0 }
 	];
 
-	// Meme regle que le plugin : centre tant que tout tient, sinon fenetre
-	// alignee a gauche.
+	// Same rule as the plugin: center while everything fits, otherwise a
+	// left-aligned window.
 	const scrolling = spec.count > VISIBLE_SLOTS;
 	const shown = scrolling ? Math.min(VISIBLE_SLOTS, spec.count) : spec.count;
 	const start = scrolling ? 0 : centeredStart(shown);
@@ -239,22 +239,22 @@ async function compose(spec: CaseSpec): Promise<Buffer> {
 }
 
 const cases: Array<[string, CaseSpec]> = [
-	["1 participant : centre", { count: 1 }],
-	["2 participants : centres", { count: 2, speaking: 1 }],
-	["3 participants : centres", { count: 3, speaking: 1 }],
-	["4 participants : rangee pleine, le 3e parle", { count: 4, speaking: 2, badge: "mute" }],
-	["5 participants : defilement, fenetre 1", { count: 5 }],
-	["5 participants : defilement, fenetre 2", { count: 5, offset: 1, speaking: 0 }],
+	["1 participant: centered", { count: 1 }],
+	["2 participants: centered", { count: 2, speaking: 1 }],
+	["3 participants: centered", { count: 3, speaking: 1 }],
+	["4 participants: full row, 3rd speaking", { count: 4, speaking: 2, badge: "mute" }],
+	["5 participants: scrolling, window 1", { count: 5 }],
+	["5 participants: scrolling, window 2", { count: 5, offset: 1, speaking: 0 }],
 	[
-		"Annonce : arrivee",
-		{ count: 3, alert: { kind: "joined", name: "Camille", title: "Camille", detail: "a rejoint le vocal" } }
+		"Announcement: joined",
+		{ count: 3, alert: { kind: "joined", name: "Camille", title: "Camille", detail: "joined the voice channel" } }
 	],
 	[
-		"Annonce : salon (sans avatar)",
-		{ count: 0, alert: { kind: "channel", title: "Le cocon des copaings", detail: "????Parlote" } }
+		"Announcement: channel (no avatar)",
+		{ count: 0, alert: { kind: "channel", title: "late night lounge", detail: "" } }
 	],
-	["Rappel : micro coupe", { count: 3, speaking: 1, flash: "mute" }],
-	["Rappel : casque coupe", { count: 4, badge: "deafen", flash: "deafen" }]
+	["Reminder: microphone cut", { count: 3, speaking: 1, flash: "mute" }],
+	["Reminder: headset cut", { count: 4, badge: "deafen", flash: "deafen" }]
 ];
 
 fs.mkdirSync(outDir, { recursive: true });
@@ -308,4 +308,4 @@ const sheet = await sharp({
 
 const file = path.join(outDir, "infobar-preview.png");
 fs.writeFileSync(file, sheet);
-console.log(`apercu ecrit : ${path.relative(root, file)}`);
+console.log(`preview written: ${path.relative(root, file)}`);

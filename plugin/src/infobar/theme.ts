@@ -1,14 +1,13 @@
 /**
- * Geometrie et fabrique d'assets de l'Infobar.
+ * Infobar geometry and asset factory.
  *
- * SOURCE UNIQUE de la geometrie, partagee par deux consommateurs :
- *   - tools/generate-infobar.ts, qui ecrit les assets fixes et le layout ;
- *   - le plugin, qui reecrit la carte et les cadres quand l'utilisateur change
- *     la couleur de fond.
+ * SINGLE SOURCE of geometry, shared by two consumers:
+ *   - tools/generate-infobar.ts, which writes the fixed assets and the layout;
+ *   - the plugin, which rewrites the card and frames when the user changes the
+ *     background color.
  *
- * Si les deux divergeaient, les avatars seraient decoupes de travers : d'ou ce
- * module unique, sans aucune dependance, importable aussi bien par rollup que
- * directement par Node.
+ * If the two diverged, avatars would be clipped incorrectly: hence this single
+ * module, with no dependencies, importable by rollup and directly by Node.
  */
 
 // --- Geometrie ---------------------------------------------------------------
@@ -17,34 +16,33 @@ export const WIDTH = 232;
 export const HEIGHT = 50;
 
 /**
- * Nombre d'avatars affichables en meme temps, et largeur de la fenetre de
- * defilement.
+ * Number of avatars displayable at once, and scroll window width.
  */
 export const VISIBLE_SLOTS = 4;
 
 /**
- * Positions disponibles dans le layout.
+ * Available positions in the layout.
  *
- * Une position d'item est FIGEE dans le layout : seules sa valeur et son opacite
- * changent a l'execution. Avec une grille a l'ecart d'un emplacement, centrer 1,
- * 2 ou 3 avatars tomberait forcement a cote. La grille avance donc d'un
- * DEMI-emplacement, ce qui permet a chaque configuration centree de tomber
- * juste : 3 positions pour 1 avatar, 2 pour 2, 1 pour 3, 0 pour 4.
+ * An item position is FIXED in the layout: only its value and opacity change at
+ * runtime. With a grid spaced by one full slot, centering 1, 2, or 3 avatars
+ * would always be off. The grid therefore advances by HALF a slot, which lets
+ * every centered configuration land correctly: 3 positions for 1 avatar, 2 for
+ * 2, 1 for 3, 0 for 4.
  */
 export const GRID_SLOTS = 7;
 
 /**
- * Diametre de l'avatar.
+ * Avatar diameter.
  *
- * C'est le maximum exploitable : la toile fait 50 px de haut et il faut loger
- * l'anneau de part et d'autre. 44 + 2 x 3 = 50, soit toute la hauteur.
+ * This is the maximum usable size: the canvas is 50 px high and the ring must
+ * fit on both sides. 44 + 2 x 3 = 50, the full height.
  */
 export const AVATAR = 44;
-/** Diametre du cadre, et donc bord exterieur de l'anneau. */
+/** Frame diameter, and therefore the ring's outer edge. */
 export const CIRCLE = 50;
-/** Epaisseur de l'anneau. */
+/** Ring thickness. */
 export const RING_WIDTH = 3;
-/** Ecart entre deux emplacements. */
+/** Gap between two slots. */
 export const PITCH = 56;
 export const BADGE = 18;
 
@@ -56,19 +54,19 @@ export const AVATAR_Y = FRAME_Y + INSET;
 export const AVATAR_RADIUS = AVATAR / 2;
 export const CIRCLE_RADIUS = CIRCLE / 2;
 
-/** Ecart entre deux positions de la grille : un demi-emplacement. */
+/** Gap between two grid positions: half a slot. */
 export const GRID_STEP = PITCH / 2;
 
-/** Coin superieur gauche de la position `index` de la grille. */
+/** Top-left corner of grid position `index`. */
 export const slotX = (index: number): number => START_X + index * GRID_STEP;
-/** Coin superieur gauche de l'avatar de la position `index`. */
+/** Top-left corner of the avatar at position `index`. */
 export const avatarX = (index: number): number => slotX(index) + INSET;
 
 /**
- * Position de depart d'une rangee centree de `count` avatars.
+ * Starting position of a centered row of `count` avatars.
  *
- * Les positions occupees sont alors `depart + 2i`. La rangee se retrouve centree
- * a un demi-emplacement pres, ce qui est invisible sur 232 px.
+ * Occupied positions are then `start + 2i`. The row ends up centered within
+ * half a slot, which is invisible over 232 px.
  */
 export function centeredStart(count: number): number {
 	return Math.max(0, VISIBLE_SLOTS - count);
@@ -81,9 +79,9 @@ export const CARD_BORDER = "#2b2d31";
 export const SPEAKING_COLOR = "#23a55a";
 
 /**
- * Couleurs des annonces d'arrivee, de depart et de changement de salon.
+ * Colors for join, leave, and channel-change announcements.
  *
- * Les coupures n'en font plus partie : elles ont leur propre voile.
+ * Cuts are no longer part of it: they have their own veil.
  */
 export const ALERT_ACCENTS: Record<string, string> = {
 	joined: "#23a55a",
@@ -92,9 +90,9 @@ export const ALERT_ACCENTS: Record<string, string> = {
 };
 
 /**
- * Couleurs des coupures : rouges dans les deux cas.
+ * Cut colors: red in both cases.
  *
- * Ce qui distingue le micro du casque, c'est le pictogramme et le texte.
+ * What distinguishes microphone from headset is the pictogram and the text.
  */
 export const CUT_COLORS: Record<string, string> = {
 	mute: "#ed4245",
@@ -111,11 +109,11 @@ export const ALERT_TEXT_X = ALERT_FRAME_X + CIRCLE + 12;
 export const ALERT_TEXT_WIDTH = WIDTH - ALERT_TEXT_X - 8;
 
 /**
- * Nom du salon, annonce seul et en grand.
+ * Channel name, announced alone and large.
  *
- * Item dedie plutot que le texte d'etat : celui-ci occupe la moitie haute de la
- * toile, ce qui laisserait le nom visiblement decale vers le haut s'il etait
- * seul a l'ecran.
+ * Dedicated item rather than the status text: the latter occupies the top half
+ * of the canvas, which would leave the name visibly shifted upward when alone
+ * on screen.
  */
 export const CHANNEL_TEXT_X = 6;
 export const CHANNEL_TEXT_Y = 8;
@@ -124,7 +122,7 @@ export const CHANNEL_TEXT_HEIGHT = 34;
 export const CHANNEL_FONT_SIZE = 22;
 export const CHANNEL_FONT_WEIGHT = 700;
 
-// --- Voile de rappel ---------------------------------------------------------
+// --- Reminder veil -----------------------------------------------------------
 
 export const FLASH_BAR_X = 6;
 export const FLASH_BAR_Y = 9;
@@ -137,17 +135,16 @@ export const FLASH_TEXT_X = 48;
 export const FLASH_TEXT_WIDTH = WIDTH - FLASH_TEXT_X - 8;
 
 /**
- * Ordres de superposition, du fond vers l'avant.
+ * Stacking orders, from back to front.
  *
- * Chaque position de la grille occupe sa PROPRE plage d'ordres, et ce n'est pas
- * un detail : les positions sont espacees d'un demi-emplacement alors que les
- * cadres font un emplacement plein, donc deux positions voisines se chevauchent
- * forcement. A ordre egal, un chevauchement fait echouer le rendu du layout
- * ENTIER : plus rien ne s'affiche.
+ * Each grid position has its OWN order range, and that is not a detail: positions
+ * are spaced by half a slot while frames span a full slot, so two neighboring
+ * positions always overlap. At the same order, an overlap makes the ENTIRE
+ * layout fail to render: nothing appears.
  *
- * Deux positions voisines ne sont jamais visibles en meme temps, puisque les
- * positions occupees avancent de deux crans. L'ordre de peinture entre elles
- * n'a donc aucune incidence visuelle.
+ * Two neighboring positions are never visible at the same time, since occupied
+ * positions advance by two steps. The paint order between them therefore has no
+ * visual impact.
  */
 export const Z = {
 	card: 0,
@@ -177,7 +174,7 @@ export const badgeZ = (index: number): number => avatarZ(index) + 2;
 
 // --- Fabrique d'assets -------------------------------------------------------
 
-/** Sous-chemin d'un disque, utilisable dans un chemin rempli en `evenodd`. */
+/** Sub-path of a disc, usable in a path filled with `evenodd`. */
 export function disc(cx: number, cy: number, radius: number): string {
 	return `M ${cx - radius} ${cy} a ${radius} ${radius} 0 1 0 ${radius * 2} 0 a ${radius} ${radius} 0 1 0 ${-radius * 2} 0 Z`;
 }
@@ -195,21 +192,21 @@ export function cardSvg(color: string): string {
 }
 
 /**
- * Cadre pose sur l'avatar.
+ * Frame placed over the avatar.
  *
- * Deux contraintes se croisent.
+ * Two constraints intersect.
  *
- * 1. Le trou doit faire EXACTEMENT le diametre de l'avatar, c'est-a-dire son
- *    cercle inscrit. Un trou plus grand ne coupe pas les coins et l'avatar
- *    ressort en carre aux coins arrondis.
+ * 1. The hole must be EXACTLY the avatar diameter, i.e. its inscribed circle. A
+ *    larger hole does not clip the corners and the avatar shows as a square
+ *    with rounded corners.
  *
- * 2. La couverture ne doit PAS depasser l'emprise de l'avatar. Le cadre occupe
- *    toute la hauteur de la toile : une couverture carree de sa taille entiere
- *    deborderait de la carte et effacerait ses coins arrondis. Elle est donc
- *    limitee a l'emprise de l'avatar, ce qui la reduit a ses quatre coins.
+ * 2. The cover must NOT exceed the avatar's footprint. The frame occupies the
+ *    full canvas height: a square cover of its full size would overflow the
+ *    card and erase its rounded corners. It is therefore limited to the
+ *    avatar's footprint, which reduces it to its four corners.
  *
- * Consequence : l'anneau chevauche la couronne de ces coins, il est donc dessine
- * APRES la couverture. Dans l'autre ordre, il serait recouvert.
+ * Consequence: the ring overlaps the crown of those corners, so it is drawn
+ * AFTER the cover. In the other order, it would be covered.
  */
 export function frameSvg(coverColor: string, speaking = false): string {
 	const centre = CIRCLE_RADIUS;
@@ -231,10 +228,10 @@ export function frameSvg(coverColor: string, speaking = false): string {
 }
 
 /**
- * Pictogramme de coupure, partage par le badge et le voile de rappel.
+ * Cut pictogram, shared by the badge and the reminder veil.
  *
- * Un seul trace pour les deux usages : le badge l'entoure d'un disque colore, le
- * voile le pose seul, en blanc, a cote du texte.
+ * One drawing for both uses: the badge surrounds it with a colored disc, the
+ * veil places it alone, in white, next to the text.
  */
 export function cutGlyph(kind: string): string {
 	if (kind === "mute") {
@@ -254,20 +251,20 @@ export function cutGlyph(kind: string): string {
          <rect x="16.3" y="12.4" width="3.7" height="6.4" rx="1.7" fill="#fff"/>`;
 }
 
-/** Couleur d'une coupure, avec echec explicite si la cle n'existe pas. */
+/** Cut color, with an explicit failure when the key does not exist. */
 export function cutColor(kind: string): string {
 	const color = CUT_COLORS[kind];
 	if (color === undefined) {
-		throw new Error(`Couleur de coupure inconnue : ${kind}`);
+		throw new Error(`Unknown cut color: ${kind}`);
 	}
 	return color;
 }
 
 /**
- * Badge d'etat, en bas a droite de l'avatar.
+ * Status badge, at the bottom right of the avatar.
  *
- * Rouge pour les deux coupures : c'est le pictogramme qui indique s'il s'agit du
- * micro ou du casque. Le casque prime, car il coupe aussi le micro.
+ * Red for both cuts: the pictogram indicates whether it is the microphone or
+ * the headset. The headset wins because it also mutes the microphone.
  */
 export function badgeSvg(kind: string): string {
 	const fill = cutColor(kind);
@@ -287,7 +284,7 @@ export function accentSvg(color: string): string {
 	);
 }
 
-/** Carte opaque des annonces : elle doit masquer la rangee d'avatars. */
+/** Opaque announcement card: it must hide the avatar row. */
 export function alertBackgroundSvg(): string {
 	return svg(
 		WIDTH,
@@ -296,7 +293,7 @@ export function alertBackgroundSvg(): string {
 	);
 }
 
-/** Fond opaque du voile de rappel. */
+/** Opaque background of the reminder veil. */
 export function flashBackgroundSvg(color: string): string {
 	return svg(
 		WIDTH,
@@ -320,7 +317,7 @@ export function flashIconSvg(kind: string): string {
 `;
 }
 
-/** Avatar de repli, quand l'image est introuvable. */
+/** Fallback avatar when the image cannot be found. */
 export function placeholderSvg(): string {
 	const grey = "#6b6f76";
 	return `<svg xmlns="http://www.w3.org/2000/svg" width="${AVATAR}" height="${AVATAR}">
@@ -331,9 +328,9 @@ export function placeholderSvg(): string {
 `;
 }
 
-// --- Theme dependant de la couleur choisie -----------------------------------
+// --- Theme depending on the chosen color -------------------------------------
 
-/** Normalise une couleur en `#rrggbb`, ou renvoie la valeur par defaut. */
+/** Normalizes a color to `#rrggbb`, or returns the default value. */
 export function normalizeColor(input: unknown): string {
 	if (typeof input !== "string") return DEFAULT_BACKGROUND;
 
@@ -347,17 +344,17 @@ export function normalizeColor(input: unknown): string {
 	return DEFAULT_BACKGROUND;
 }
 
-/** Cle de dossier pour une couleur : c'est elle qui invalide le rendu. */
+/** Folder key for a color: it is what invalidates the rendering. */
 export function themeKey(color: string): string {
 	return normalizeColor(color).slice(1);
 }
 
 /**
- * Assets a reecrire quand la couleur de fond change.
+ * Assets to rewrite when the background color changes.
  *
- * Le nom du fichier contient la couleur. C'est volontaire : Stream Deck ne
- * relit un pixmap que si son chemin change, donc reecrire le meme fichier
- * laisserait l'ancienne couleur a l'ecran.
+ * The file name contains the color. This is intentional: Stream Deck re-reads a
+ * pixmap only when its path changes, so rewriting the same file would leave the
+ * old color on screen.
  */
 export function themeAssets(color: string): Array<{ path: string; svg: string }> {
 	const background = normalizeColor(color);
@@ -370,7 +367,7 @@ export function themeAssets(color: string): Array<{ path: string; svg: string }>
 	];
 }
 
-/** Chemins des assets de theme, une fois ecrits. */
+/** Theme asset paths, once written. */
 export function themePaths(color: string): { card: string; frame: string; frameSpeaking: string } {
 	const key = themeKey(color);
 	return {

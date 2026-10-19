@@ -1,25 +1,25 @@
 /**
- * Ecriture des assets dependant de la couleur de fond.
+ * Writes assets that depend on the background color.
  *
- * La carte et les cadres portent la couleur choisie. Comme Stream Deck ne relit
- * un pixmap que si son CHEMIN change, le nom du fichier contient la couleur :
- * reecrire le meme fichier laisserait l'ancienne couleur a l'ecran.
+ * The card and frames carry the chosen color. Since Stream Deck re-reads a
+ * pixmap only when its PATH changes, the file name contains the color:
+ * rewriting the same file would leave the old color on screen.
  *
- * L'ecriture se fait dans le dossier du plugin, ce qui est autorise et evite
- * d'avoir recours a des data URI SVG, dont le support n'est pas verifie.
+ * Writing happens in the plugin folder, which is allowed and avoids relying on
+ * SVG data URIs, whose support is not verified.
  */
 
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { log } from "../discord/log.js";
-import { normalizeColor, themeAssets, themePaths } from "./theme.js";
+import { DEFAULT_BACKGROUND, normalizeColor, themeAssets, themePaths } from "./theme.js";
 
 /**
- * Racine du plugin.
+ * Plugin root.
  *
- * Le bundle est compile dans `bin/plugin.js`, donc le dossier parent du fichier
- * en cours d'execution est la racine du plugin.
+ * The bundle is compiled to `bin/plugin.js`, so the parent folder of the current
+ * file is the plugin root.
  */
 const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -32,10 +32,9 @@ export interface ThemeFiles {
 const written = new Set<string>();
 
 /**
- * Garantit la presence des assets pour cette couleur, et renvoie leurs chemins.
+ * Ensures the assets for this color exist and returns their paths.
  *
- * Le resultat est memoise : les fichiers ne sont ecrits qu'une fois par couleur
- * et par execution.
+ * The result is memoized: files are written only once per color and per run.
  */
 export function ensureTheme(backgroundColor: unknown): ThemeFiles {
 	const color = normalizeColor(backgroundColor);
@@ -51,12 +50,14 @@ export function ensureTheme(backgroundColor: unknown): ThemeFiles {
 				fs.writeFileSync(file, asset.svg);
 			}
 			written.add(key);
-			log.info(`Theme applique : ${color} (racine ${PLUGIN_ROOT})`);
+			log.info(`Theme applied: ${color} (root ${PLUGIN_ROOT})`);
 		} catch (error) {
-			// Sans theme ecrit, on retombe sur celui du layout : la couleur ne
-			// sera pas celle demandee, mais l'affichage reste correct.
-			log.error(`Ecriture du theme impossible : ${String(error)}`);
-			return themePaths(color);
+			// Without a written theme, fall back to the layout's theme: the color
+			// will not be the requested one, but the display stays correct.
+			// Returning the requested color paths would point to missing files
+			// and could make the whole layout fail to render.
+			log.error(`Cannot write the theme: ${String(error)}`);
+			return themePaths(DEFAULT_BACKGROUND);
 		}
 	}
 
