@@ -57,15 +57,21 @@ const theme = themePaths(DEFAULT_BACKGROUND);
 
 const SLIDE_WIDTH = 1920;
 const SLIDE_HEIGHT = 960;
+const MARGIN = 120;
+const RIGHT_X = 1010;
+const RIGHT_WIDTH = 780;
 
 const PALETTE = {
-	background: "#0a0c11",
-	surface: "#11151d",
-	surfaceRaised: "#171c26",
-	border: "#2a303d",
+	background: "#080a0f",
+	backgroundAlt: "#0d1118",
+	surface: "#10141c",
+	border: "#283040",
 	text: "#ffffff",
-	muted: "#a9b2c3",
+	muted: "#9aa5b8",
+	dim: "#5f6b7e",
 	accent: "#23a55a",
+	accentSoft: "#8ff0b6",
+	danger: "#ed4245",
 	blurple: "#5865f2",
 	pink: "#eb459e",
 	green: "#57f287",
@@ -85,23 +91,38 @@ const svgLayer = (width: number, height: number, body: string): Buffer =>
 		`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">${body}</svg>`
 	);
 
-const text = (
-	width: number,
-	height: number,
-	body: string
-): Buffer => svgLayer(width, height, body);
+const escapeXml = (value: string): string =>
+	value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 
-async function squareAvatar(label: string, color: string, size = 256): Promise<Buffer> {
+interface AvatarSpec {
+	label: string;
+	from: string;
+	to: string;
+}
+
+const AVATARS: readonly AvatarSpec[] = [
+	{ label: "L", from: "#5b6cff", to: "#8b5cf6" },
+	{ label: "C", from: "#ff5c8a", to: "#ff7a59" },
+	{ label: "M", from: "#20c997", to: "#4ade80" },
+	{ label: "A", from: "#f6c453", to: "#f59e0b" }
+];
+
+async function avatar(spec: AvatarSpec): Promise<Buffer> {
+	const size = 256;
 	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">
-    <rect width="${size}" height="${size}" fill="${color}"/>
-    <text x="50%" y="50%" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="120"
-          font-weight="700" text-anchor="middle" dominant-baseline="central">${label}</text>
+    <defs>
+      <linearGradient id="avatar" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="${spec.from}"/>
+        <stop offset="1" stop-color="${spec.to}"/>
+      </linearGradient>
+    </defs>
+    <rect width="${size}" height="${size}" fill="url(#avatar)"/>
+    <circle cx="${size * 0.28}" cy="${size * 0.2}" r="${size * 0.55}" fill="#ffffff" opacity="0.08"/>
+    <text x="50%" y="50%" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="104"
+          font-weight="600" text-anchor="middle" dominant-baseline="central">${spec.label}</text>
   </svg>`;
 	return sharp(Buffer.from(svg)).resize(AVATAR, AVATAR).png().toBuffer();
 }
-
-const AVATAR_COLORS = [PALETTE.blurple, PALETTE.pink, PALETTE.green, PALETTE.yellow, "#ed4245"] as const;
-const AVATAR_LABELS = ["L", "C", "M", "A", "J"] as const;
 
 interface InfobarSpec {
 	count: number;
@@ -132,10 +153,7 @@ async function composeInfobar(spec: InfobarSpec): Promise<Buffer> {
 		const slot = start + index * 2;
 		const sourceIndex = (spec.offset ?? 0) + index;
 		layers.push({
-			input: await squareAvatar(
-				AVATAR_LABELS[sourceIndex % AVATAR_LABELS.length]!,
-				AVATAR_COLORS[sourceIndex % AVATAR_COLORS.length]!
-			),
+			input: await avatar(AVATARS[sourceIndex % AVATARS.length]!),
 			left: avatarX(slot),
 			top: AVATAR_Y
 		});
@@ -172,7 +190,7 @@ async function composeInfobar(spec: InfobarSpec): Promise<Buffer> {
 						spec.alert.kind === "joined"
 							? PALETTE.accent
 							: spec.alert.kind === "left"
-								? "#ed4245"
+								? PALETTE.danger
 								: "#1e1f22"
 				}
 			})
@@ -184,7 +202,7 @@ async function composeInfobar(spec: InfobarSpec): Promise<Buffer> {
 
 		if (spec.alert.name !== undefined) {
 			layers.push({
-				input: await squareAvatar(spec.alert.name.slice(0, 1).toUpperCase(), PALETTE.blurple),
+				input: await avatar(AVATARS[0]!),
 				left: ALERT_AVATAR_X,
 				top: ALERT_AVATAR_Y
 			});
@@ -197,17 +215,17 @@ async function composeInfobar(spec: InfobarSpec): Promise<Buffer> {
 
 		const centered = spec.alert.name === undefined;
 		layers.push({
-			input: text(
+			input: svgLayer(
 				WIDTH,
 				HEIGHT,
 				centered
 					? `<text x="${CHANNEL_TEXT_X + CHANNEL_TEXT_WIDTH / 2}" y="${CHANNEL_TEXT_Y + CHANNEL_TEXT_HEIGHT / 2}"
                         font-family="Segoe UI, Arial, sans-serif" font-size="${CHANNEL_FONT_SIZE}" font-weight="700"
-                        fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">${spec.alert.title}</text>`
+                        fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">${escapeXml(spec.alert.title)}</text>`
 					: `<text x="${ALERT_TEXT_X}" y="18" font-family="Segoe UI, Arial, sans-serif" font-size="16"
-                        font-weight="600" fill="#FFFFFF" dominant-baseline="central">${spec.alert.title}</text>
+                        font-weight="600" fill="#FFFFFF" dominant-baseline="central">${escapeXml(spec.alert.title)}</text>
                        <text x="${ALERT_TEXT_X}" y="36" font-family="Segoe UI, Arial, sans-serif" font-size="12"
-                        fill="#FFFFFF" dominant-baseline="central">${spec.alert.detail}</text>`
+                        fill="#FFFFFF" dominant-baseline="central">${escapeXml(spec.alert.detail)}</text>`
 			),
 			left: 0,
 			top: 0
@@ -231,7 +249,7 @@ async function composeInfobar(spec: InfobarSpec): Promise<Buffer> {
 			top: FLASH_ICON_Y
 		});
 		layers.push({
-			input: text(
+			input: svgLayer(
 				WIDTH,
 				HEIGHT,
 				`<text x="${FLASH_TEXT_X}" y="${HEIGHT / 2}" font-family="Segoe UI, Arial, sans-serif"
@@ -249,7 +267,7 @@ async function composeInfobar(spec: InfobarSpec): Promise<Buffer> {
 			width: WIDTH,
 			height: HEIGHT,
 			channels: 4,
-			background: { r: 0, g: 0, b: 0, alpha: 1 }
+			background: { r: 0, g: 0, b: 0, alpha: 0 }
 		}
 	})
 		.composite(layers)
@@ -257,261 +275,270 @@ async function composeInfobar(spec: InfobarSpec): Promise<Buffer> {
 		.toBuffer();
 }
 
-function background(body: string): Buffer {
-	return text(SLIDE_WIDTH, SLIDE_HEIGHT, body);
+function background(): string {
+	return `<defs>
+      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="${PALETTE.background}"/>
+        <stop offset="0.55" stop-color="${PALETTE.backgroundAlt}"/>
+        <stop offset="1" stop-color="#131b28"/>
+      </linearGradient>
+      <radialGradient id="glow" cx="0.76" cy="0.28" r="0.62">
+        <stop offset="0" stop-color="${PALETTE.accent}" stop-opacity="0.11"/>
+        <stop offset="1" stop-color="${PALETTE.accent}" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect width="${SLIDE_WIDTH}" height="${SLIDE_HEIGHT}" fill="url(#bg)"/>
+    <rect width="${SLIDE_WIDTH}" height="${SLIDE_HEIGHT}" fill="url(#glow)"/>`;
 }
 
-/** Generic rounded panel, to separate previews from the background. */
-function panel(x: number, y: number, width: number, height: number, radius = 32): string {
-	return `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${radius}"
-              fill="${PALETTE.surface}" stroke="${PALETTE.border}" stroke-width="2"/>`;
+function card(x: number, y: number, width: number, height: number): string {
+	return `<rect x="${x + 8}" y="${y + 14}" width="${width}" height="${height}" rx="32"
+              fill="#000000" opacity="0.28"/>
+    <rect x="${x}" y="${y}" width="${width}" height="${height}" rx="32"
+          fill="${PALETTE.surface}" stroke="${PALETTE.border}" stroke-width="2"/>`;
 }
 
-function escapeXml(value: string): string {
-	return value
-		.replaceAll("&", "&amp;")
-		.replaceAll("<", "&lt;")
-		.replaceAll(">", "&gt;");
+function eyebrow(text: string, x: number, y: number, anchor = "start"): string {
+	return `<text x="${x}" y="${y}" fill="${PALETTE.dim}" font-family="Segoe UI, Arial, sans-serif"
+          font-size="20" font-weight="600" letter-spacing="3" text-anchor="${anchor}">${escapeXml(text)}</text>`;
 }
 
-function pill(x: number, y: number, label: string, accent = false): string {
-	const width = 20 + label.length * 12;
-	return `<g>
-    <rect x="${x}" y="${y}" width="${width}" height="42" rx="21"
-          fill="${accent ? "rgba(35,165,90,0.16)" : "rgba(255,255,255,0.06)"}"
-          stroke="${accent ? "rgba(35,165,90,0.45)" : "rgba(255,255,255,0.1)"}"/>
-    <text x="${x + width / 2}" y="${y + 22}" fill="${accent ? "#8ff0b6" : PALETTE.muted}"
-          font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="600"
-          text-anchor="middle" dominant-baseline="central">${escapeXml(label)}</text>
-  </g>`;
+function title(text: string, x: number, y: number, size = 76, anchor = "start"): string {
+	return `<text x="${x}" y="${y}" fill="${PALETTE.text}" font-family="Segoe UI, Arial, sans-serif"
+          font-size="${size}" font-weight="700" text-anchor="${anchor}">${escapeXml(text)}</text>`;
 }
 
-async function mockup(
-	buffer: Buffer,
-	left: number,
-	top: number,
-	scale: number
-): Promise<Overlay> {
+function body(text: string, x: number, y: number, anchor = "start", fill = PALETTE.muted): string {
+	return `<text x="${x}" y="${y}" fill="${fill}" font-family="Segoe UI, Arial, sans-serif"
+          font-size="27" font-weight="400" text-anchor="${anchor}">${escapeXml(text)}</text>`;
+}
+
+function caption(text: string, x: number, y: number, anchor = "start"): string {
+	return `<text x="${x}" y="${y}" fill="${PALETTE.dim}" font-family="Segoe UI, Arial, sans-serif"
+          font-size="18" font-weight="400" text-anchor="${anchor}">${escapeXml(text)}</text>`;
+}
+
+function feature(
+	x: number,
+	y: number,
+	color: string,
+	heading: string,
+	description: string
+): string {
+	return `<circle cx="${x + 6}" cy="${y - 7}" r="7" fill="${color}"/>
+    <text x="${x + 28}" y="${y}" fill="${PALETTE.text}" font-family="Segoe UI, Arial, sans-serif"
+          font-size="24" font-weight="600">${escapeXml(heading)}</text>
+    <text x="${x + 28}" y="${y + 30}" fill="${PALETTE.dim}" font-family="Segoe UI, Arial, sans-serif"
+          font-size="19" font-weight="400">${escapeXml(description)}</text>`;
+}
+
+function footer(left: string, right: string): string {
+	return `<line x1="${MARGIN}" y1="846" x2="${SLIDE_WIDTH - MARGIN}" y2="846"
+          stroke="#1d2431" stroke-width="1"/>
+    ${caption(left, MARGIN, 884)}
+    ${caption(right, SLIDE_WIDTH - MARGIN, 884, "end")}`;
+}
+
+async function preview(buffer: Buffer, left: number, top: number, scale: number): Promise<Overlay> {
 	return {
 		input: await sharp(buffer)
-			.resize(WIDTH * scale, HEIGHT * scale, { kernel: "lanczos3" })
+			.resize(Math.round(WIDTH * scale), Math.round(HEIGHT * scale), { kernel: "lanczos3" })
 			.png()
 			.toBuffer(),
-		left,
-		top
+		left: Math.round(left),
+		top: Math.round(top)
+	};
+}
+
+/** Renders a large Infobar inside a clean product card. */
+async function previewCard(
+	spec: InfobarSpec,
+	label: string,
+	captionText: string,
+	options: { y?: number; x?: number; width?: number; height?: number } = {}
+): Promise<{ background: string; overlay: Overlay }> {
+	const cardX = options.x ?? RIGHT_X;
+	const cardY = options.y ?? 270;
+	const cardW = options.width ?? RIGHT_WIDTH;
+	const cardH = options.height ?? 420;
+	const previewScale = 3;
+	const previewWidth = WIDTH * previewScale;
+	const previewX = cardX + Math.round((cardW - previewWidth) / 2);
+	const previewY = cardY + 96;
+
+	return {
+		background: `${card(cardX, cardY, cardW, cardH)}
+      ${eyebrow(label, previewX, cardY + 54)}
+      ${caption(captionText, previewX, cardY + cardH - 42)}`,
+		overlay: await preview(await composeInfobar(spec), previewX, previewY, previewScale)
 	};
 }
 
 async function hero(): Promise<Buffer> {
-	const roster = await composeInfobar({ count: 4, speaking: 2, badge: "mute", badgeIndex: 3 });
-	const channel = await composeInfobar({
-		count: 0,
-		alert: { kind: "channel", title: "late night lounge", detail: "" }
-	});
+	const previewData = await previewCard(
+		{ count: 4, speaking: 2, badge: "mute", badgeIndex: 3 },
+		"LIVE INFOBAR",
+		"4 participants · 1 speaking · 1 muted"
+	);
 
-	const bg = background(`
-    <defs>
-      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="#0b0e14"/>
-        <stop offset="0.55" stop-color="#0a0c11"/>
-        <stop offset="1" stop-color="#121722"/>
-      </linearGradient>
-      <radialGradient id="glow" cx="0.72" cy="0.38" r="0.55">
-        <stop offset="0" stop-color="#23a55a" stop-opacity="0.14"/>
-        <stop offset="1" stop-color="#23a55a" stop-opacity="0"/>
-      </radialGradient>
-    </defs>
-    <rect width="${SLIDE_WIDTH}" height="${SLIDE_HEIGHT}" fill="url(#bg)"/>
-    <rect width="${SLIDE_WIDTH}" height="${SLIDE_HEIGHT}" fill="url(#glow)"/>
-    ${panel(1000, 178, 760, 604, 36)}
-    <text x="150" y="218" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="22" font-weight="600" letter-spacing="4">STREAM DECK NEO  ·  INFOBAR</text>
-    <text x="150" y="344" fill="${PALETTE.text}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="96" font-weight="700">Voice Presence</text>
-    <text x="150" y="414" fill="${PALETTE.accent}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="54" font-weight="600">for Discord</text>
-    <text x="150" y="512" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="30" font-weight="400">See who is in your voice channel,</text>
-    <text x="150" y="556" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="30" font-weight="400">who is speaking, and who is muted.</text>
-    ${pill(150, 630, "Live avatars", true)}
-    ${pill(342, 630, "Speaking ring")}
-    ${pill(544, 630, "Mute & deafen")}
-    <text x="1032" y="248" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="20" font-weight="600" letter-spacing="2">INFOBAR PREVIEW</text>
-    <text x="1032" y="708" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="20" font-weight="400">4 participants · 1 speaking · 1 muted</text>
-  `);
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${SLIDE_WIDTH}" height="${SLIDE_HEIGHT}">
+    ${background()}
+    ${eyebrow("STREAM DECK NEO · INFOBAR", MARGIN, 210)}
+    ${title("Voice Presence", MARGIN, 336, 86)}
+    <text x="${MARGIN}" y="402" fill="${PALETTE.accent}" font-family="Segoe UI, Arial, sans-serif"
+          font-size="50" font-weight="600">for Discord</text>
+    ${body("See who is in your voice channel,", MARGIN, 486)}
+    ${body("who is speaking, and who is muted.", MARGIN, 526)}
+    ${feature(MARGIN, 610, PALETTE.accent, "Live avatars", "Up to four people at a glance.")}
+    ${feature(MARGIN, 682, PALETTE.accent, "Speaking ring", "The active speaker is highlighted.")}
+    ${feature(MARGIN, 754, PALETTE.danger, "Mute & deafen badges", "See who is cut at a glance.")}
+    ${previewData.background}
+    ${footer("Voice Presence for Discord", "Works with the Discord plugin from Elgato")}
+  </svg>`;
 
-	return sharp(bg)
-		.composite([
-			await mockup(roster, 1032, 290, 3),
-			await mockup(channel, 1032, 500, 3)
-		])
-		.png()
-		.toBuffer();
-}
-
-async function thumbnail(): Promise<Buffer> {
-	const roster = await composeInfobar({ count: 4, speaking: 1, badge: "mute", badgeIndex: 2 });
-	const bg = background(`
-    <defs>
-      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="#0b0e14"/>
-        <stop offset="1" stop-color="#151b27"/>
-      </linearGradient>
-    </defs>
-    <rect width="${SLIDE_WIDTH}" height="${SLIDE_HEIGHT}" fill="url(#bg)"/>
-    ${panel(180, 160, 1560, 640, 44)}
-    <text x="960" y="292" fill="${PALETTE.text}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="82" font-weight="700" text-anchor="middle">Voice Presence for Discord</text>
-    <text x="960" y="366" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="30" font-weight="400" text-anchor="middle">Your voice channel, at a glance on the Stream Deck Neo Infobar.</text>
-  `);
-
-	return sharp(bg)
-		.composite([await mockup(roster, 612, 470, 3)])
-		.png()
-		.toBuffer();
+	return sharp(Buffer.from(svg)).composite([previewData.overlay]).png().toBuffer();
 }
 
 async function gallerySpeaking(): Promise<Buffer> {
-	const quiet = await composeInfobar({ count: 3 });
-	const live = await composeInfobar({ count: 4, speaking: 1, badge: "mute", badgeIndex: 3 });
-	const bg = background(`
-    <defs>
-      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="#0a0c11"/>
-        <stop offset="1" stop-color="#10151f"/>
-      </linearGradient>
-    </defs>
-    <rect width="${SLIDE_WIDTH}" height="${SLIDE_HEIGHT}" fill="url(#bg)"/>
-    ${panel(940, 150, 820, 660, 36)}
-    <text x="130" y="210" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="22" font-weight="600" letter-spacing="4">WHO IS SPEAKING</text>
-    <text x="130" y="320" fill="${PALETTE.text}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="68" font-weight="700">Know who is talking</text>
-    <text x="130" y="400" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="28" font-weight="400">A green ring moves around the active speaker.</text>
-    <text x="130" y="446" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="28" font-weight="400">Muted and deafened participants get a red badge.</text>
-    ${pill(130, 520, "Speaking ring", true)}
-    ${pill(332, 520, "Mute badge")}
-    ${pill(516, 520, "Deafen badge")}
-    <text x="990" y="220" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="20" font-weight="600" letter-spacing="2">NOBODY SPEAKING</text>
-    <text x="990" y="470" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="20" font-weight="600" letter-spacing="2">SPEAKING + MUTED</text>
-  `);
+	const previewData = await previewCard(
+		{ count: 4, speaking: 1, badge: "mute", badgeIndex: 3 },
+		"LIVE INFOBAR",
+		"4 participants · 1 speaking · 1 muted"
+	);
 
-	return sharp(bg)
-		.composite([
-			await mockup(quiet, 990, 250, 3),
-			await mockup(live, 990, 500, 3)
-		])
-		.png()
-		.toBuffer();
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${SLIDE_WIDTH}" height="${SLIDE_HEIGHT}">
+    ${background()}
+    ${eyebrow("SPEAKING & STATUS", MARGIN, 210)}
+    ${title("Know who is talking", MARGIN, 336, 72)}
+    ${body("A green ring follows the active speaker.", MARGIN, 420)}
+    ${body("Red badges show muted or deafened participants.", MARGIN, 460)}
+    ${feature(MARGIN, 560, PALETTE.accent, "Speaking ring", "Moves around the person talking.")}
+    ${feature(MARGIN, 640, PALETTE.danger, "Mute badge", "A red microphone badge.")}
+    ${feature(MARGIN, 720, PALETTE.danger, "Deafen badge", "A red headset badge.")}
+    ${previewData.background}
+    ${footer("Voice Presence for Discord", "Works with the Discord plugin from Elgato")}
+  </svg>`;
+
+	return sharp(Buffer.from(svg)).composite([previewData.overlay]).png().toBuffer();
 }
 
 async function galleryAlerts(): Promise<Buffer> {
-	const channel = await composeInfobar({
-		count: 0,
-		alert: { kind: "channel", title: "late night lounge", detail: "" }
-	});
-	const joined = await composeInfobar({
-		count: 3,
-		alert: { kind: "joined", name: "Camille", title: "Camille", detail: "joined the voice channel" }
-	});
-	const muted = await composeInfobar({ count: 3, flash: "mute" });
-	const bg = background(`
-    <defs>
-      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="#0a0c11"/>
-        <stop offset="1" stop-color="#10151f"/>
-      </linearGradient>
-    </defs>
-    <rect width="${SLIDE_WIDTH}" height="${SLIDE_HEIGHT}" fill="url(#bg)"/>
-    ${panel(940, 130, 820, 700, 36)}
-    <text x="130" y="210" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="22" font-weight="600" letter-spacing="4">USEFUL FEEDBACK</text>
-    <text x="130" y="320" fill="${PALETTE.text}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="68" font-weight="700">Stay in the loop</text>
-    <text x="130" y="400" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="28" font-weight="400">Arrivals and departures appear for a few seconds.</text>
-    <text x="130" y="446" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="28" font-weight="400">The channel name is announced when you join.</text>
-    <text x="130" y="492" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="28" font-weight="400">A reminder appears while you are muted or deafened.</text>
-    ${pill(130, 566, "Channel announcement", true)}
-    ${pill(422, 566, "Mute reminder")}
-    <text x="990" y="202" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="20" font-weight="600" letter-spacing="2">CHANNEL ANNOUNCEMENT</text>
-    <text x="990" y="366" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="20" font-weight="600" letter-spacing="2">SOMEONE JOINED</text>
-    <text x="990" y="626" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="20" font-weight="600" letter-spacing="2">MUTE REMINDER</text>
-  `);
+	const cards: Array<{ label: string; spec: InfobarSpec }> = [
+		{
+			label: "CHANNEL",
+			spec: { count: 0, alert: { kind: "channel", title: "late night lounge", detail: "" } }
+		},
+		{
+			label: "SOMEONE JOINED",
+			spec: {
+				count: 3,
+				alert: {
+					kind: "joined",
+					name: "Camille",
+					title: "Camille",
+					detail: "joined the voice channel"
+				}
+			}
+		},
+		{ label: "MUTE REMINDER", spec: { count: 3, flash: "mute" } }
+	];
 
-	return sharp(bg)
-		.composite([
-			await mockup(channel, 990, 230, 3),
-			await mockup(joined, 990, 394, 3),
-			await mockup(muted, 990, 654, 3)
-		])
-		.png()
-		.toBuffer();
+	const overlays: Overlay[] = [];
+	const pieces: string[] = [];
+	const cardX = 1060;
+	const cardW = 660;
+	const cardH = 200;
+	const gap = 30;
+	const startY = 170;
+	const scale = 2.5;
+	const previewWidth = WIDTH * scale;
+	const previewX = cardX + Math.round((cardW - previewWidth) / 2);
+
+	for (const [index, entry] of cards.entries()) {
+		const cardY = startY + index * (cardH + gap);
+		pieces.push(card(cardX, cardY, cardW, cardH));
+		pieces.push(eyebrow(entry.label, cardX + 40, cardY + 42));
+		overlays.push(await preview(await composeInfobar(entry.spec), previewX, cardY + 62, scale));
+	}
+
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${SLIDE_WIDTH}" height="${SLIDE_HEIGHT}">
+    ${background()}
+    ${eyebrow("ALERTS & REMINDERS", MARGIN, 210)}
+    ${title("Never miss a moment", MARGIN, 336, 72)}
+    ${body("Arrivals and departures appear for a few seconds.", MARGIN, 420)}
+    ${body("The channel name is announced when you join.", MARGIN, 460)}
+    ${body("A reminder appears while you are muted or deafened.", MARGIN, 500)}
+    ${feature(MARGIN, 600, PALETTE.accent, "Channel announcement", "Know where you are.")}
+    ${feature(MARGIN, 680, PALETTE.danger, "Mute reminder", "A clear reminder while you are cut.")}
+    ${pieces.join("\n")}
+    ${footer("Voice Presence for Discord", "Works with the Discord plugin from Elgato")}
+  </svg>`;
+
+	return sharp(Buffer.from(svg)).composite(overlays).png().toBuffer();
 }
 
 async function gallerySetup(): Promise<Buffer> {
-	const roster = await composeInfobar({ count: 3, speaking: 1 });
-	const connectKey = await toPng(
-		fs.readFileSync(path.join(plugin, "imgs", "actions", "connect", "key.svg")),
-		144,
-		144
+	const previewData = await previewCard(
+		{ count: 3, speaking: 1 },
+		"LIVE INFOBAR",
+		"Works alongside the Discord plugin from Elgato"
 	);
-	const step = (y: number, number: string, title: string, body: string): string => `
-    <circle cx="158" cy="${y}" r="28" fill="${PALETTE.surfaceRaised}" stroke="${PALETTE.accent}" stroke-width="3"/>
-    <text x="158" y="${y}" fill="${PALETTE.accent}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="24" font-weight="700" text-anchor="middle" dominant-baseline="central">${number}</text>
-    <text x="210" y="${y - 8}" fill="${PALETTE.text}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="28" font-weight="600">${title}</text>
-    <text x="210" y="${y + 30}" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="22" font-weight="400">${body}</text>`;
 
-	const bg = background(`
-    <defs>
-      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="#0a0c11"/>
-        <stop offset="1" stop-color="#10151f"/>
-      </linearGradient>
-    </defs>
-    <rect width="${SLIDE_WIDTH}" height="${SLIDE_HEIGHT}" fill="url(#bg)"/>
-    ${panel(920, 140, 840, 680, 36)}
-    <text x="130" y="210" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="22" font-weight="600" letter-spacing="4">READY IN A MINUTE</text>
-    <text x="130" y="320" fill="${PALETTE.text}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="68" font-weight="700">Three quick steps</text>
-    ${step(450, "1", "Place the Infobar action", "Add \"Voice Channel (Infobar)\" to your Neo.")}
-    ${step(590, "2", "Authorize Discord once", "Press \"Reconnect to Discord\" and approve.")}
-    ${step(730, "3", "Join a voice channel", "Avatars appear as soon as you connect.")}
-    <text x="1360" y="220" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="20" font-weight="600" letter-spacing="2" text-anchor="middle">WORKS WITH THE DISCORD PLUGIN FROM ELGATO</text>
-    <text x="1360" y="664" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="20" font-weight="400" text-anchor="middle">Reconnect to Discord</text>
-    <text x="1360" y="724" fill="${PALETTE.muted}" font-family="Segoe UI, Arial, sans-serif"
-          font-size="20" font-weight="400" text-anchor="middle">Elgato's plugin keeps its mute, deafen, and join keys.</text>
-  `);
+	const step = (y: number, number: string, heading: string, description: string): string => `
+    <circle cx="${MARGIN + 20}" cy="${y}" r="28" fill="${PALETTE.surface}" stroke="${PALETTE.accent}" stroke-width="2"/>
+    <text x="${MARGIN + 20}" y="${y}" fill="${PALETTE.accentSoft}" font-family="Segoe UI, Arial, sans-serif"
+          font-size="22" font-weight="700" text-anchor="middle" dominant-baseline="central">${number}</text>
+    <text x="${MARGIN + 72}" y="${y - 6}" fill="${PALETTE.text}" font-family="Segoe UI, Arial, sans-serif"
+          font-size="26" font-weight="600">${escapeXml(heading)}</text>
+    <text x="${MARGIN + 72}" y="${y + 28}" fill="${PALETTE.dim}" font-family="Segoe UI, Arial, sans-serif"
+          font-size="20" font-weight="400">${escapeXml(description)}</text>`;
 
-	return sharp(bg)
-		.composite([
-			await mockup(roster, 1360 - (WIDTH * 3) / 2, 280, 3),
-			{ input: connectKey, left: 1360 - 72, top: 482 }
-		])
-		.png()
-		.toBuffer();
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${SLIDE_WIDTH}" height="${SLIDE_HEIGHT}">
+    ${background()}
+    ${eyebrow("SETUP", MARGIN, 210)}
+    ${title("Ready in a minute", MARGIN, 336, 72)}
+    ${body("Three steps, one authorization.", MARGIN, 420)}
+    ${body("Then the Infobar updates on its own.", MARGIN, 460)}
+    ${step(530, "1", "Place the Infobar action", "Add Voice Channel (Infobar) to your Neo.")}
+    ${step(650, "2", "Authorize Discord once", "Press Reconnect to Discord and approve.")}
+    ${step(770, "3", "Join a voice channel", "Avatars appear as soon as you connect.")}
+    ${previewData.background}
+    ${footer("Voice Presence for Discord", "Works with the Discord plugin from Elgato")}
+  </svg>`;
+
+	return sharp(Buffer.from(svg)).composite([previewData.overlay]).png().toBuffer();
+}
+
+async function thumbnail(): Promise<Buffer> {
+	const previewData = await previewCard(
+		{ count: 4, speaking: 2, badge: "mute", badgeIndex: 3 },
+		"LIVE INFOBAR",
+		"4 participants · 1 speaking · 1 muted",
+		{ y: 470, x: 560, width: 800, height: 340 }
+	);
+
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${SLIDE_WIDTH}" height="${SLIDE_HEIGHT}">
+    ${background()}
+    ${eyebrow("STREAM DECK NEO · INFOBAR", 960, 176, "middle")}
+    ${title("Voice Presence", 960, 300, 88, "middle")}
+    <text x="960" y="368" fill="${PALETTE.accent}" font-family="Segoe UI, Arial, sans-serif"
+          font-size="48" font-weight="600" text-anchor="middle">for Discord</text>
+    ${body("Your voice channel, at a glance.", 960, 432, "middle")}
+    ${previewData.background}
+    ${footer("Voice Presence for Discord", "Works with the Discord plugin from Elgato")}
+  </svg>`;
+
+	return sharp(Buffer.from(svg)).composite([previewData.overlay]).png().toBuffer();
 }
 
 fs.mkdirSync(outDir, { recursive: true });
+
+// Remove the previous generated visuals so no stale image survives a redesign.
+for (const file of fs.readdirSync(outDir)) {
+	if (file.endsWith(".png") && file !== "app-icon-288.png") {
+		fs.rmSync(path.join(outDir, file));
+	}
+}
 
 const files: Array<[string, Buffer]> = [
 	["thumbnail-1920x960.png", await thumbnail()],
@@ -524,11 +551,6 @@ for (const [name, contents] of files) {
 	fs.writeFileSync(path.join(outDir, name), contents);
 }
 
-// The large hero image serves as the first gallery item when provided in
-// addition to the thumbnail; it is also kept for the product page.
-fs.writeFileSync(path.join(outDir, "gallery-0-hero-1920x960.png"), await hero());
-
 console.log("Marketplace visuals written to marketplace/:");
-console.log("  app-icon-288.png");
+console.log("  app-icon-288.png (generated by npm run icons)");
 for (const [name] of files) console.log(`  ${name}`);
-console.log("  gallery-0-hero-1920x960.png");

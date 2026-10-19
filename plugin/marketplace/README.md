@@ -10,14 +10,13 @@ Discord**. The plugin itself is packaged from
 | --- | --- | --- |
 | `app-icon-288.png` | 288 × 288 | Marketplace app icon |
 | `thumbnail-1920x960.png` | 1920 × 960 | Product thumbnail |
-| `gallery-0-hero-1920x960.png` | 1920 × 960 | Optional hero / first gallery item |
 | `gallery-1-speaking-1920x960.png` | 1920 × 960 | Speaking ring and badges |
 | `gallery-2-alerts-1920x960.png` | 1920 × 960 | Alerts and mute reminder |
 | `gallery-3-setup-1920x960.png` | 1920 × 960 | Setup steps and compatibility |
 | `description-en.md` | — | English product description |
 
 Marketplace requires at least three gallery items, so upload the thumbnail plus
-`gallery-1` through `gallery-3` (the hero is optional).
+`gallery-1` through `gallery-3`.
 
 ## Elgato guidelines covered by the project
 
