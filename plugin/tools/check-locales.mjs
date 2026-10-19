@@ -64,9 +64,14 @@ if (extra.length > 0) {
 	throw new Error(`fr.json has unknown translations: ${extra.join(", ")}`);
 }
 
-for (const [key, value] of Object.entries(translated)) {
-	if (typeof value !== "string" || value.trim() === "") {
-		throw new Error(`fr.json translation "${key}" must be a non-empty string.`);
+for (const [language, translations] of [
+	["en", reference],
+	["fr", translated]
+]) {
+	for (const [key, value] of Object.entries(translations)) {
+		if (typeof value !== "string" || value.trim() === "") {
+			throw new Error(`${language}.json translation "${key}" must be a non-empty string.`);
+		}
 	}
 }
 

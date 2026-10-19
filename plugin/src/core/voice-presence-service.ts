@@ -80,6 +80,9 @@ type AlertListener = (alert: VoiceAlert) => void;
 function explain(message: string): string {
   if (message.includes("No Discord pipe reachable")) return "error.discordMissing";
   if (message.includes("READY")) return "error.discordUnresponsive";
+  if (message.includes("invalid_client")) return "error.invalidClient";
+  if (message.includes("redirect_uri")) return "error.redirectUri";
+  if (message.includes("Token exchange failed")) return "error.tokenExchange";
   return message;
 }
 

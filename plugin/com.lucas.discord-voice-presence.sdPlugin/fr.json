@@ -33,7 +33,10 @@
 		},
 		"error": {
 			"discordMissing": "Lance le client Discord",
-			"discordUnresponsive": "Discord ne répond pas, nouvel essai automatique"
+			"discordUnresponsive": "Discord ne répond pas, nouvel essai automatique",
+			"invalidClient": "Active Public Client dans l'application Discord",
+			"redirectUri": "Enregistre une URI de redirection dans l'application Discord",
+			"tokenExchange": "Échange de token Discord impossible, voir le journal"
 		},
 		"alert": {
 			"joined": "a rejoint le vocal",

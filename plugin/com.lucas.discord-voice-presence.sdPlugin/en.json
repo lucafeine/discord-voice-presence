@@ -33,7 +33,10 @@
 		},
 		"error": {
 			"discordMissing": "Start the Discord app",
-			"discordUnresponsive": "Discord is not responding, retrying automatically"
+			"discordUnresponsive": "Discord is not responding, retrying automatically",
+			"invalidClient": "Enable Public Client in the Discord app",
+			"redirectUri": "Register a redirect URI in the Discord app",
+			"tokenExchange": "Discord token exchange failed, check the log"
 		},
 		"alert": {
 			"joined": "joined the voice channel",
